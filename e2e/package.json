@@ -1,0 +1,20 @@
+{
+  "name": "wichteln-e2e",
+  "version": "1.0.0",
+  "description": "Comprehensive E2E and Tier 1-4 test suite for Wichteln 24 Kollegen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:tier1": "playwright test tier1-features",
+    "test:tier2": "playwright test tier2-boundaries",
+    "test:tier3": "playwright test tier3-interactions",
+    "test:tier4": "playwright test tier4-scenarios",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}
