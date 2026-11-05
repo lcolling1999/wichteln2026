@@ -360,4 +360,37 @@ describe('Express REST API Integration Tests', () => {
       expect(res.body.content).toBe('Ich wünsche mir warme Socken!');
     });
   });
+
+  describe('Test Mode Endpoints (/api/test)', () => {
+    it('POST /api/test/reset-rate-limit clears rate limit state', async () => {
+      // Intentionally trigger rate limit
+      for (let i = 0; i < 5; i++) {
+        adminLoginLimiter.recordFailure('127.0.0.1');
+      }
+      expect(adminLoginLimiter.check('127.0.0.1').allowed).toBe(false);
+
+      const res = await request(app).post('/api/test/reset-rate-limit');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      // Limiter should now allow requests
+      expect(adminLoginLimiter.check('127.0.0.1').allowed).toBe(true);
+    });
+
+    it('POST /api/test/reset-draw-state reverts drawn state to is_drawn = 0 and clears assignments', async () => {
+      const q = createQueryLayer(db);
+      q.saveDrawAssignments(
+        [{ giver_id: 1, receiver_id: 2 }],
+        { adminSessionId: 'admin-test', verificationHash: 'a'.repeat(64), drawnAt: new Date().toISOString() }
+      );
+      expect(q.getDrawStatus().is_drawn).toBe(1);
+
+      const res = await request(app).post('/api/test/reset-draw-state');
+      expect(res.status).toBe(200);
+      expect(res.body.isDrawn).toBe(false);
+
+      expect(q.getDrawStatus().is_drawn).toBe(0);
+      expect(q.getAllAssignmentsWithNames()).toHaveLength(0);
+    });
+  });
 });

@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test';
 import { CANONICAL_COLLEAGUES, WichtelnApiClient } from '../helpers/api-client';
 
 test.describe('Tier 1: Colleague Whitelist & Seeding (R1)', () => {
+  test.beforeEach(async ({ request }) => {
+    const api = new WichtelnApiClient(request);
+    await api.resetDrawState();
+    await api.resetRateLimit();
+  });
+
   test('TC-F1-01: System whitelist contains exactly the 24 pre-seeded colleagues', async ({
     request,
   }) => {
@@ -47,20 +53,10 @@ test.describe('Tier 1: Colleague Whitelist & Seeding (R1)', () => {
   }) => {
     await page.goto('/');
 
-    // Check presence of colleague selector dropdown or list
+    // Check presence of colleague selector dropdown with auto-retrying assertion
     const selector = page.locator('[data-testid="colleague-select"], select#colleague-select');
-    if (await selector.isVisible()) {
-      const options = selector.locator('option');
-      const count = await options.count();
-      // Should have either 24 or 25 (if default placeholder is present)
-      expect(count).toBeGreaterThanOrEqual(24);
-    } else {
-      // If rendered as buttons or autocomplete chips
-      const chips = page.locator('[data-testid^="colleague-item-"]');
-      if (await chips.count() > 0) {
-        expect(await chips.count()).toBe(24);
-      }
-    }
+    await expect(selector).toBeVisible();
+    await expect(selector.locator('option:not([disabled])')).toHaveCount(24);
   });
 
   test('TC-F1-05: Colleague display names match expected first names without trailing whitespace', async ({

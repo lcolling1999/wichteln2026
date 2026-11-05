@@ -329,6 +329,8 @@ export async function simulateTripleTap(
       await page.waitForTimeout(intervalMs);
     }
   }
+  // Allow gesture and flip animation to settle
+  await page.waitForTimeout(150);
 }
 
 /**

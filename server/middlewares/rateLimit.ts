@@ -61,6 +61,10 @@ export class SlidingWindowRateLimiter {
     this.records.delete(ip);
   }
 
+  public resetAll(): void {
+    this.records.clear();
+  }
+
   public destroy(): void {
     clearInterval(this.cleanupInterval);
   }
@@ -69,6 +73,14 @@ export class SlidingWindowRateLimiter {
 export const adminLoginLimiter = new SlidingWindowRateLimiter(5, 5 * 60 * 1000);
 
 export function adminRateLimitMiddleware(req: Request, res: Response, next: NextFunction): void {
+  // Allow explicit bypass in non-production environments when requested by test harness
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    (req.headers['x-test-bypass-rate-limit'] === 'true' || req.headers['x-bypass-rate-limit'] === 'true')
+  ) {
+    return next();
+  }
+
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   const { allowed, retryAfterSeconds } = adminLoginLimiter.check(ip);
 

@@ -88,6 +88,9 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
         await expect(wishlist).toBeVisible();
       }
     }
+
+    // Allow animations and trace flushes to settle before context teardown
+    await page.waitForTimeout(300);
   });
 
   test('CF-06: Grinch Pull-Down (EE4) coordinates ambient lighting flicker and audio sneer', async ({

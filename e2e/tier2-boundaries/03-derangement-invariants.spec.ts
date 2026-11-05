@@ -27,6 +27,12 @@ function generateSattolosDerangement(ids: number[]): AssignmentPair[] {
 test.describe('Tier 2: Derangement & Draw Invariant Boundaries', () => {
   const DEFAULT_ADMIN_PIN = process.env.ADMIN_PIN || 'wichteln2026';
 
+  test.beforeEach(async ({ request }) => {
+    const api = new WichtelnApiClient(request);
+    await api.resetRateLimit();
+    await api.resetDrawState();
+  });
+
   test('TC-B3-01 (Incomplete Registration Draw Attempt): Admin draw rejected with 412 when registrations < 24', async ({
     request,
   }) => {

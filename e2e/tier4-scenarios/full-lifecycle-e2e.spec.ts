@@ -6,6 +6,11 @@ import { injectSensorMocks, simulateRotaryDialTurn } from '../helpers/sensor-moc
 test.describe('Tier 4: Multi-User Real-World Scenarios', () => {
   const DEFAULT_ADMIN_PIN = process.env.ADMIN_PIN || 'wichteln2026';
 
+  test.beforeEach(async ({ request }) => {
+    const api = new WichtelnApiClient(request);
+    await api.resetRateLimit();
+  });
+
   test('SC-01: Complete 24-Colleague Lifecycle E2E Simulation', async ({
     page,
     request,

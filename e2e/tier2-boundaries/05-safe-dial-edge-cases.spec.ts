@@ -92,5 +92,8 @@ test.describe('Tier 2: Safe Dial Gesture Anomalies & Admin Protection Boundaries
       const res = await api.adminLogin(`wrong_pin_${i}`);
       expect([401, 429]).toContain(res.status);
     }
+
+    // Clean up rate limiter after test finishes so other tests / browser projects aren't locked out
+    await api.resetRateLimit();
   });
 });

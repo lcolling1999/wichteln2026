@@ -141,3 +141,15 @@ adminRouter.post(
     }
   }
 );
+
+/**
+ * POST /api/admin/reset-rate-limit
+ * Test and non-production helper to clear rate limiter records.
+ */
+if (!config.isProduction) {
+  adminRouter.post('/reset-rate-limit', (_req: Request, res: Response) => {
+    adminLoginLimiter.resetAll();
+    res.status(200).json({ success: true, message: 'Admin login rate limiter reset' });
+  });
+}
+

@@ -5,6 +5,11 @@ import { injectSensorMocks } from '../helpers/sensor-mocks';
 test.describe('Tier 1: Protected Admin Portal & Draw Trigger (R2)', () => {
   const DEFAULT_ADMIN_PIN = process.env.ADMIN_PIN || 'wichteln2026';
 
+  test.beforeEach(async ({ request }) => {
+    const api = new WichtelnApiClient(request);
+    await api.resetRateLimit();
+  });
+
   test('TC-F5-01: Admin login endpoint accepts valid PIN and sets admin session', async ({
     request,
   }) => {

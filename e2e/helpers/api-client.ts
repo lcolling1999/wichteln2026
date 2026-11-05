@@ -240,4 +240,15 @@ export class WichtelnApiClient {
     const res = await this.request.post(`${this.baseURL}/api/admin/draw`);
     return { status: res.status(), body: await res.json() };
   }
+
+  async resetRateLimit(): Promise<any> {
+    const res = await this.request.post(`${this.baseURL}/api/test/reset-rate-limit`);
+    return { status: res.status(), body: await res.json() };
+  }
+
+  async resetDrawState(): Promise<any> {
+    const res = await this.request.post(`${this.baseURL}/api/test/reset-draw-state`);
+    return { status: res.status(), body: await res.json() };
+  }
 }
+
