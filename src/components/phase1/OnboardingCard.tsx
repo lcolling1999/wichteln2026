@@ -9,11 +9,13 @@ import { soundEngine } from '../../audio/soundEngine';
 interface OnboardingCardProps {
   onSuccess: (participant: Participant) => void;
   onAdminOpen?: () => void;
+  participants?: Participant[];
 }
 
 export const OnboardingCard: React.FC<OnboardingCardProps> = ({
   onSuccess,
   onAdminOpen,
+  participants: externalParticipants,
 }) => {
   const [colleagues, setColleagues] = useState<Participant[]>([]);
   const [selectedColleague, setSelectedColleague] = useState<Participant | null>(null);
@@ -28,6 +30,16 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
     clearError,
     isSupported,
   } = useWebAuthn();
+
+  useEffect(() => {
+    if (externalParticipants && externalParticipants.length > 0) {
+      setColleagues(externalParticipants);
+      setSelectedColleague((prev) => {
+        if (!prev) return prev;
+        return externalParticipants.find((c) => c.id === prev.id) || prev;
+      });
+    }
+  }, [externalParticipants]);
 
   useEffect(() => {
     fetch('/api/participants')

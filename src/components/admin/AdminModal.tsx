@@ -5,6 +5,7 @@ interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDrawTriggered: () => void;
+  onParticipantReset?: (participantId: number) => void;
   status: DrawStatus | null;
   participants: Participant[];
 }
@@ -13,19 +14,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   isOpen,
   onClose,
   onDrawTriggered,
+  onParticipantReset,
   status,
   participants,
 }) => {
   const [pin, setPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [drawLoading, setDrawLoading] = useState(false);
+  const [resettingId, setResettingId] = useState<number | null>(null);
+  const [confirmResetId, setConfirmResetId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
       setPin('');
       setError(null);
+      setSuccessMessage(null);
+      setConfirmResetId(null);
     }
   }, [isOpen]);
 
@@ -88,6 +95,38 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleResetParticipant = async (participant: Participant) => {
+    setError(null);
+    setSuccessMessage(null);
+    setResettingId(participant.id);
+
+    try {
+      const res = await fetch('/api/admin/reset-participant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ participantId: participant.id }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Zurücksetzen fehlgeschlagen.');
+      }
+
+      const name = participant.displayName || participant.name;
+      setSuccessMessage(
+        `Passkey für ${name} wurde gelöscht und zur Neuregistrierung freigeschaltet. (Hinweis: ${name} sollte ggf. den alten Passkey im Passkey-Manager des Geräts entfernen.)`
+      );
+      setConfirmResetId(null);
+      onParticipantReset?.(participant.id);
+    } catch (err: any) {
+      setError(err.message || 'Fehler beim Zurücksetzen des Teilnehmers.');
+    } finally {
+      setResettingId(null);
+    }
+  };
+
   const registeredCount = status?.registeredCount ?? participants.filter((p) => p.isRegistered).length;
   const isDrawn = status?.isDrawn ?? false;
   const canDraw = registeredCount === 24 && !isDrawn;
@@ -112,6 +151,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div
+            data-testid="admin-reset-success"
+            className="mb-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-start justify-between"
+          >
+            <span>{successMessage}</span>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage(null)}
+              className="ml-2 text-emerald-200/70 hover:text-white font-bold"
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -191,23 +246,66 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
             {/* Participants list */}
             <div className="mt-4 pt-3 border-t border-white/10">
-              <h3 className="text-xs font-semibold text-slate-300 mb-2">Kollegen-Status</h3>
-              <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-slate-300">
+                  Kollegen-Status & Passkey-Verwaltung
+                </h3>
+                <span className="text-[10px] text-slate-400">
+                  Passkey bei Bedarf zurücksetzen
+                </span>
+              </div>
+              <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                 {participants.map((p) => (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/5 text-xs"
+                    className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-white/5 text-xs gap-2"
                   >
-                    <span>{p.displayName || p.name}</span>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        p.isRegistered
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-slate-700 text-slate-400'
-                      }`}
-                    >
-                      {p.isRegistered ? 'Registriert' : 'Ausstehend'}
-                    </span>
+                    <span className="font-medium truncate">{p.displayName || p.name}</span>
+                    <div className="flex items-center space-x-1.5 shrink-0">
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          p.isRegistered
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-slate-700 text-slate-400'
+                        }`}
+                      >
+                        {p.isRegistered ? 'Registriert' : 'Ausstehend'}
+                      </span>
+
+                      {p.isRegistered && (
+                        confirmResetId === p.id ? (
+                          <div className="flex items-center space-x-1">
+                            <button
+                              type="button"
+                              data-testid={`admin-confirm-reset-${p.id}`}
+                              disabled={resettingId === p.id}
+                              onClick={() => handleResetParticipant(p)}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+                            >
+                              {resettingId === p.id ? '...' : 'Löschen'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmResetId(null)}
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-slate-300"
+                            >
+                              Abbruch
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            data-testid={`admin-reset-btn-${p.id}`}
+                            disabled={resettingId === p.id}
+                            onClick={() => setConfirmResetId(p.id)}
+                            title="Passkey löschen & zur Neuregistrierung freischalten"
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-500/20 hover:bg-red-500/35 text-red-300 border border-red-500/30 transition-colors"
+                          >
+                            Passkey löschen
+                          </button>
+                        )
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

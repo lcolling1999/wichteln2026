@@ -172,20 +172,11 @@ export class AdminService {
   }
 
   /**
-   * Resets participant registration (before draw only)
+   * Resets participant registration and passkeys so they can register a new passkey
    */
   public resetParticipant(participantId: number) {
     const db = getDatabase();
     const q = createQueryLayer(db);
-
-    const drawStatus = q.getDrawStatus();
-    if (drawStatus.is_drawn === 1) {
-      throw new AdminError(
-        409,
-        'Teilnehmer kann nach erfolgter Auslosung nicht zurückgesetzt werden.',
-        'DRAW_ALREADY_COMPLETED'
-      );
-    }
 
     const participant = q.getParticipantById(participantId);
     if (!participant) {
@@ -193,7 +184,11 @@ export class AdminService {
     }
 
     q.resetParticipant(participantId);
-    return { success: true };
+    return {
+      success: true,
+      participantId,
+      name: participant.display_name || participant.name,
+    };
   }
 }
 

@@ -209,6 +209,9 @@ export function createQueryLayer(db: DatabaseSync) {
     deleteSession: db.prepare(
       'DELETE FROM sessions WHERE id = ?'
     ),
+    deleteSessionsByParticipantId: db.prepare(
+      'DELETE FROM sessions WHERE participant_id = ?'
+    ),
     deleteExpiredSessions: db.prepare(
       "DELETE FROM sessions WHERE datetime(expires_at) < datetime('now')"
     ),
@@ -225,6 +228,9 @@ export function createQueryLayer(db: DatabaseSync) {
     ),
     deleteChallenge: db.prepare(
       'DELETE FROM webauthn_challenges WHERE challenge = ?'
+    ),
+    deleteChallengesByParticipantId: db.prepare(
+      'DELETE FROM webauthn_challenges WHERE participant_id = ?'
     ),
     deleteChallengesByParticipantAndType: db.prepare(
       'DELETE FROM webauthn_challenges WHERE participant_id = ? AND type = ?'
@@ -260,6 +266,8 @@ export function createQueryLayer(db: DatabaseSync) {
     resetParticipant(participantId: number): void {
       runTransaction(db, () => {
         stmts.deleteAuthenticatorsByParticipantId.run(participantId);
+        stmts.deleteSessionsByParticipantId.run(participantId);
+        stmts.deleteChallengesByParticipantId.run(participantId);
         stmts.resetParticipant.run(participantId);
       });
     },

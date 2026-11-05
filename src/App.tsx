@@ -105,7 +105,7 @@ export const App: React.FC = () => {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         onAdminOpen={() => setIsAdminModalOpen(true)}
-        showAdmin={phase === 'phase1_onboarding'}
+        showAdmin={true}
         currentUser={currentUser}
       />
 
@@ -115,6 +115,7 @@ export const App: React.FC = () => {
           <OnboardingCard
             onSuccess={handleAuthSuccess}
             onAdminOpen={() => setIsAdminModalOpen(true)}
+            participants={participants}
           />
         )}
 
@@ -152,6 +153,13 @@ export const App: React.FC = () => {
             }
             return prevPhase;
           });
+        }}
+        onParticipantReset={(resetParticipantId) => {
+          refetch();
+          if (currentUser && currentUser.id === resetParticipantId) {
+            setCurrentUser(null);
+            setPhase('phase1_onboarding');
+          }
         }}
         status={status}
         participants={participants}
