@@ -95,9 +95,8 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
       <div
         data-testid="gift-card-front"
         className={`relative z-10 w-full transition-opacity duration-300 ${
-          isFlipped ? 'opacity-0 pointer-events-none invisible' : 'opacity-100 pointer-events-auto visible'
+          isFlipped ? 'opacity-0 pointer-events-none hidden' : 'opacity-100 pointer-events-auto block'
         }`}
-        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
       >
         {children}
       </div>
@@ -105,14 +104,12 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
       {/* Back Face (Easter Egg 3 Secret Wishlist Notepad) */}
       {backContent && (
         <div
-          className={`absolute inset-0 z-10 p-5 sm:p-6 transition-opacity duration-300 ${
-            isFlipped ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'
+          className={`relative z-10 w-full transition-opacity duration-300 ${
+            isFlipped ? 'opacity-100 pointer-events-auto block' : 'opacity-0 pointer-events-none hidden'
           }`}
           style={{
             transform: 'rotateY(180deg)',
             WebkitTransform: 'rotateY(180deg)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
           }}
         >
           {typeof backContent === 'function'
