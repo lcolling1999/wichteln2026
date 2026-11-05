@@ -110,12 +110,17 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
       onClick={(e) => e.stopPropagation()} // Stop click bubbling to avoid accidental flip
     >
       {/* Header bar with Flip Back button */}
-      <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/15">
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg">✨</span>
-          <span className="font-extrabold text-sm sm:text-base text-amber-300 tracking-wide">
-            {activeTab === 'mine' ? 'Geheimer Wunschzettel' : `Wünsche von ${partnerName}`}
-          </span>
+      <div className="flex items-center justify-between pb-3 mb-2 border-b border-amber-400/20">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📝</span>
+          <div>
+            <h3 className="font-extrabold text-sm sm:text-base text-amber-300 tracking-wide leading-tight">
+              {activeTab === 'mine' ? 'Dein geheimer Wunschzettel' : `Wünsche von ${partnerName}`}
+            </h3>
+            <span className="text-[11px] text-amber-200/70 block">
+              {activeTab === 'mine' ? 'Sichtbar nur für deinen Wichtel' : 'Geschenk-Tipps für dich'}
+            </span>
+          </div>
         </div>
         {onFlipBack && (
           <button
@@ -125,7 +130,7 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
               e.stopPropagation();
               onFlipBack();
             }}
-            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs text-slate-200 font-semibold transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-xs text-amber-100 font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
             Karte umdrehen ⮌
           </button>
@@ -134,9 +139,9 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
 
       {/* Main Content Area */}
       {activeTab === 'mine' ? (
-        <div className="flex flex-col flex-1 space-y-2">
-          <p className="text-xs text-slate-300">
-            Trage hier Wünsche oder Hobbys ein. Dein Wichtel kann diese geheim einsehen!
+        <div className="flex flex-col flex-1 space-y-2.5">
+          <p className="text-xs text-slate-200/90 leading-relaxed bg-white/5 p-2 rounded-lg border border-white/10">
+            💡 Trage hier Ideen, Vorlieben oder No-Gos für dein Geschenk ein. Der Text wird beim Tippen <strong>automatisch gespeichert</strong> und kann von deinem Wichtel geheim eingesehen werden.
           </p>
 
           <textarea
@@ -146,14 +151,15 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
             onChange={handleTextChange}
             placeholder="Lieber Wichtel, ich freue mich über Kaffee, ein spannendes Buch oder edle Schokolade..."
             maxLength={2000}
-            className="w-full flex-1 min-h-[140px] p-3 rounded-xl glass-input resize-none text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-white/20 custom-scrollbar"
+            className="w-full flex-1 min-h-[140px] p-3 rounded-xl bg-slate-900/80 resize-none text-sm text-white placeholder-slate-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-amber-400/30 custom-scrollbar shadow-inner"
           />
 
           <div className="flex items-center justify-between pt-1 text-xs">
             {/* Status Indicator */}
             <div className="flex items-center gap-2">
               {isSaving && (
-                <span className="text-amber-300 font-medium animate-pulse">
+                <span className="text-amber-300 font-medium animate-pulse flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping" />
                   Wird gespeichert...
                 </span>
               )}
@@ -163,7 +169,7 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
                   className="inline-flex items-center gap-1 font-bold text-emerald-400 animate-fade-in"
                 >
                   <span>✓</span>
-                  <span>Gespeichert</span>
+                  <span>Automatisch gespeichert</span>
                 </div>
               )}
               {saveError && (
@@ -171,7 +177,7 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
               )}
             </div>
 
-            <span className="text-slate-400">{content.length}/2000</span>
+            <span className="text-slate-400 font-mono text-[11px]">{content.length}/2000</span>
           </div>
 
           {/* Peek Partner Wishlist Button */}
@@ -180,9 +186,9 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
               type="button"
               data-testid="peek-partner-wishlist-btn"
               onClick={handlePeekPartner}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="px-4 py-2 rounded-xl bg-amber-400/25 hover:bg-amber-400/35 border border-amber-300/50 text-amber-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
             >
-              <span>👀</span>
+              <span className="text-sm">👀</span>
               <span>Wunschzettel von {partnerName} ansehen</span>
             </button>
           </div>
@@ -190,13 +196,13 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
       ) : (
         /* Partner Wishlist View */
         <div className="flex flex-col flex-1 space-y-3">
-          <p className="text-xs text-slate-300">
-            Hier sind die geheimen Wünsche deines Wichtelpartners:
+          <p className="text-xs text-slate-200/90 leading-relaxed bg-white/5 p-2 rounded-lg border border-white/10">
+            🎁 Hier sind die geheimen Geschenk-Wünsche deines Partners:
           </p>
 
           <div
             data-testid="partner-wishlist-content"
-            className="w-full flex-1 min-h-[140px] p-3 rounded-xl bg-black/30 border border-amber-300/30 text-sm text-slate-100 overflow-y-auto whitespace-pre-wrap custom-scrollbar"
+            className="w-full flex-1 min-h-[140px] p-3 rounded-xl bg-slate-900/80 border border-amber-300/40 text-sm text-slate-100 overflow-y-auto whitespace-pre-wrap custom-scrollbar shadow-inner"
           >
             {partnerLoading ? (
               <span className="text-slate-400 animate-pulse">Lade Wünsche...</span>
@@ -216,9 +222,10 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
               type="button"
               data-testid="back-to-my-wishlist-btn"
               onClick={() => setActiveTab('mine')}
-              className="text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer"
+              className="text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer flex items-center gap-1"
             >
-              ← Zu meinem Wunschzettel
+              <span>←</span>
+              <span>Zu meinem Wunschzettel</span>
             </button>
           </div>
         </div>

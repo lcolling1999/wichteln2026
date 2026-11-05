@@ -185,6 +185,12 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
             ))}
           </div>
         )}
+
+        {/* Subtle Hint for Wishlist Flip on Back */}
+        <div className="mt-4 pt-2 flex items-center justify-center text-slate-400 text-xs gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
+          <span>📝</span>
+          <span>Tippe 3× auf die Karte für den geheimen Wunschzettel</span>
+        </div>
       </HolographicCard>
     </div>
   );

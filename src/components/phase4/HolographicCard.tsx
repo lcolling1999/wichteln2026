@@ -58,20 +58,20 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
     toggleFlip();
   };
 
-  // 3D Rotation mechanics: rotates 180° around Y-axis while preserving perspective tilt
   const mergedStyle: React.CSSProperties = {
     ...tiltStyle,
     transform: isFlipped
       ? `${tiltStyle.transform} rotateY(180deg)`
       : tiltStyle.transform,
     transformStyle: 'preserve-3d',
-    // Gyro: short linear transition (smooths sensor steps). Flip: full animation.
+    // During 3D flip animation, prioritize the flip transition so it runs butter-smooth at 60fps
     transition: isFlipping
-      ? 'transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)'
+      ? 'transform 0.65s cubic-bezier(0.25, 1, 0.5, 1)'
       : isGyroActive
       ? 'transform 0.1s linear'
-      : 'transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)',
+      : 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
     willChange: 'transform',
+    WebkitTransformStyle: 'preserve-3d',
   };
 
   return (
@@ -97,7 +97,7 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
         className={`relative z-10 w-full transition-opacity duration-300 ${
           isFlipped ? 'opacity-0 pointer-events-none invisible' : 'opacity-100 pointer-events-auto visible'
         }`}
-        style={{ backfaceVisibility: 'hidden' }}
+        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
       >
         {children}
       </div>
@@ -108,7 +108,7 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
           className={`absolute inset-0 z-10 p-5 sm:p-6 transition-opacity duration-300 [transform:rotateY(180deg)] ${
             isFlipped ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'
           }`}
-          style={{ backfaceVisibility: 'hidden' }}
+          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
         >
           {typeof backContent === 'function'
             ? backContent({ onFlipBack: handleManualFlip })
