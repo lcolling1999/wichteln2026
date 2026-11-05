@@ -99,24 +99,15 @@ export function useShake(options: UseShakeOptions = {}): UseShakeReturn {
       }
     };
 
-    // 3. Desktop Fallback: Double-click on background
-    const handleDoubleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && ['BUTTON', 'INPUT', 'TEXTAREA', 'A'].includes(target.tagName)) return;
-      triggerBlizzard();
-    };
-
-    // 4. Test Helper exposed on window
+    // 3. Test Helper exposed on window
     (window as any).__triggerBlizzard = triggerBlizzard;
 
     window.addEventListener('devicemotion', handleMotion);
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('dblclick', handleDoubleClick);
 
     return () => {
       window.removeEventListener('devicemotion', handleMotion);
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('dblclick', handleDoubleClick);
       if (timerRef.current) clearTimeout(timerRef.current);
       delete (window as any).__triggerBlizzard;
     };
