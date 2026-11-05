@@ -38,9 +38,21 @@ test.describe('Tier 1: WebAuthn Passkey Registration (R1)', () => {
       const selector = page.locator('[data-testid="colleague-select"], select#colleague-select');
       await selector.waitFor({ state: 'visible', timeout: 5000 });
 
-      // Find first unselected/available colleague
-      const availableOption = page.locator('option:not([disabled])').nth(1);
-      const val = await availableOption.getAttribute('value');
+      // Find first unselected/available unregistered colleague
+      const availableOption = page.locator('option:not([disabled]):not([data-registered="true"])').first();
+      let val = await availableOption.getAttribute('value');
+      if (!val) {
+        // Fallback: search by innerText if attribute not yet rendered
+        const options = selector.locator('option:not([disabled])');
+        const optCount = await options.count();
+        for (let i = 0; i < optCount; i++) {
+          const text = await options.nth(i).innerText();
+          if (!text.includes('registriert')) {
+            val = await options.nth(i).getAttribute('value');
+            if (val) break;
+          }
+        }
+      }
       if (val) {
         await selector.selectOption(val);
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Participant } from '../../types';
 import { soundEngine } from '../../audio/soundEngine';
+import { RudolphAvatar } from '../eastereggs/RudolphAvatar';
 
 interface ColleagueOrbProps {
   participant: Participant;
@@ -27,11 +28,11 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
 
   const initials = (participant.displayName || participant.name).slice(0, 2).toUpperCase();
 
-  return (
-    <div className="relative flex items-center justify-center">
-      <motion.button
-        type="button"
-        data-testid={`colleague-orb-${participant.id}`}
+  const orbButton = (
+    <motion.button
+      type="button"
+      data-testid={`colleague-orb-${participant.id}`}
+        aria-label={`${participant.displayName || participant.name}${isRegistered ? ' (Eingecheckt)' : ' (Wartet)'}`}
         whileHover={reducedMotion ? {} : { scale: 1.22, y: -4 }}
         whileTap={reducedMotion ? {} : { scale: 0.92, y: 2 }}
         transition={{
@@ -47,7 +48,7 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
           isRegistered
             ? 'gold registered text-amber-950 border-2 border-amber-300/80'
             : 'text-slate-300 border border-white/25 bg-white/10 backdrop-blur-md hover:bg-white/20'
-        } ${isCurrentUser ? 'ring-4 ring-[#F9AA2E] ring-offset-2 ring-offset-[#00254b]' : ''} w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13`}
+        } ${isCurrentUser ? 'ring-4 ring-[#F9AA2E] ring-offset-2 ring-offset-[#00254b]' : ''} w-10 h-10 sm:w-12 sm:h-12 md:w-12 md:h-12`}
         style={{
           backgroundColor: isRegistered ? '#F9AA2E' : 'rgba(255, 255, 255, 0.12)',
           boxShadow: isRegistered
@@ -73,6 +74,21 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
           <span className="absolute -inset-1 rounded-full border border-amber-300/60 animate-ping pointer-events-none opacity-25" />
         )}
       </motion.button>
+  );
+
+  return (
+    <div className="relative flex items-center justify-center">
+      {isCurrentUser ? (
+        <RudolphAvatar
+          isCurrentUser={true}
+          displayName={participant.displayName || participant.name}
+          testId="my-avatar"
+        >
+          {orbButton}
+        </RudolphAvatar>
+      ) : (
+        orbButton
+      )}
 
       {/* Tooltip on Hover or Tap */}
       {showTooltip && (

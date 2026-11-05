@@ -34,7 +34,7 @@ test.describe('Tier 1: Protected Admin Portal & Draw Trigger (R2)', () => {
     await injectSensorMocks(page);
     await page.goto('/');
 
-    const adminTrigger = page.locator('[data-testid="admin-login-trigger"], button:has-text("Admin")');
+    const adminTrigger = page.locator('[data-testid="admin-login-trigger"], button:has-text("Admin")').first();
     if (await adminTrigger.isVisible()) {
       await adminTrigger.click();
 

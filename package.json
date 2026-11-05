@@ -13,7 +13,8 @@
     "db:seed": "tsx server/db/seeds.ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^14.0.0",

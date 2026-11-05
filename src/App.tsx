@@ -3,24 +3,37 @@ import { ParticlesCanvas } from './components/common/ParticlesCanvas';
 import { Header } from './components/common/Header';
 import { OnboardingCard } from './components/phase1/OnboardingCard';
 import { WaitingLobby } from './components/phase2/WaitingLobby';
-import { SafePlaceholder } from './components/phase3/SafePlaceholder';
+import { SafeVaultContainer } from './components/phase3/SafeVaultContainer';
+import { PartnerReveal } from './components/phase4/PartnerReveal';
 import { AdminModal } from './components/admin/AdminModal';
+import { SnowstormOverlay } from './components/eastereggs/SnowstormOverlay';
+import { GrinchOverlay } from './components/eastereggs/GrinchOverlay';
 import { useLobbyPoll } from './hooks/useLobbyPoll';
+import { useShake } from './hooks/useShake';
 import { soundEngine } from './audio/soundEngine';
 import { AppPhase, Participant } from './types';
 
 export const App: React.FC = () => {
   const [phase, setPhase] = useState<AppPhase>('phase1_onboarding');
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(() => soundEngine.getMuted());
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+
+  // Easter Egg 1: Shake Detection Hook for 3s Blizzard
+  const { isBlizzard } = useShake({ durationMs: 3000 });
 
   // Status and participants polling
   const { status, participants, refetch } = useLobbyPoll({
     baseIntervalMs: 3500,
     onDrawComplete: () => {
       soundEngine.playRevealChime();
-      setPhase('phase3_safedial');
+      // Guard: Only advance if the user is currently in the lobby (authenticated)
+      setPhase((prevPhase) => {
+        if (prevPhase === 'phase2_lobby') {
+          return 'phase3_safedial';
+        }
+        return prevPhase;
+      });
     },
   });
 
@@ -41,20 +54,26 @@ export const App: React.FC = () => {
       .catch(() => {});
   }, [status?.isDrawn]);
 
-  // First user interaction initializes AudioContext (TC-F9-01)
+  // First user interaction initializes AudioContext without unhandled rejections (TC-F9-01, TC-F9-05)
   useEffect(() => {
     const handleFirstGesture = () => {
-      soundEngine.getContext();
+      soundEngine.ensureContext();
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
     };
 
-    window.addEventListener('click', handleFirstGesture);
-    window.addEventListener('touchstart', handleFirstGesture);
+    window.addEventListener('click', handleFirstGesture, { passive: true });
+    window.addEventListener('touchstart', handleFirstGesture, { passive: true });
+    window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
+    window.addEventListener('keydown', handleFirstGesture, { passive: true });
 
     return () => {
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
     };
   }, []);
 
@@ -75,15 +94,19 @@ export const App: React.FC = () => {
 
   return (
     <div className="relative min-h-screen w-full max-w-full overflow-x-hidden flex flex-col justify-between selection:bg-amber-400/30">
-      {/* Canvas Snow Particle Engine (60 FPS, Object Pool, DPR Clamping) */}
-      <ParticlesCanvas />
+      {/* Canvas Snow Particle Engine (60 FPS, Object Pool, DPR Clamping) with Blizzard Scaling */}
+      <ParticlesCanvas isBlizzard={isBlizzard} />
 
-      {/* Top Header with Brand and Audio Mute Control */}
+      {/* Easter Egg 1: Frosted Blizzard Overlay and Banner */}
+      <SnowstormOverlay isBlizzard={isBlizzard} />
+
+      {/* Top Header with Brand, Rudolph Avatar, and Audio Mute Control */}
       <Header
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         onAdminOpen={() => setIsAdminModalOpen(true)}
         showAdmin={phase === 'phase1_onboarding'}
+        currentUser={currentUser}
       />
 
       {/* Main Phase Container */}
@@ -105,20 +128,14 @@ export const App: React.FC = () => {
         )}
 
         {phase === 'phase3_safedial' && (
-          <SafePlaceholder onUnlock={() => setPhase('phase4_reveal')} />
+          <SafeVaultContainer onUnlock={() => setPhase('phase4_reveal')} />
         )}
 
         {phase === 'phase4_reveal' && (
-          <div
-            data-testid="partner-reveal-container"
-            className="w-full max-w-md mx-auto p-6 rounded-3xl glass-card border border-white/20 text-center space-y-4 my-8 text-white shadow-2xl"
-          >
-            <span className="text-4xl">🎉</span>
-            <h2 className="text-2xl font-black text-amber-300">Dein Wichtelpartner</h2>
-            <p className="text-sm text-slate-200">
-              Vorbereitung für Enthüllungs-Phase (Milestone 3).
-            </p>
-          </div>
+          <PartnerReveal
+            currentUser={currentUser}
+            onBackToLobby={() => setPhase('phase2_lobby')}
+          />
         )}
       </main>
 
@@ -129,11 +146,19 @@ export const App: React.FC = () => {
         onDrawTriggered={() => {
           setIsAdminModalOpen(false);
           refetch();
-          setPhase('phase3_safedial');
+          setPhase((prevPhase) => {
+            if (prevPhase === 'phase2_lobby') {
+              return 'phase3_safedial';
+            }
+            return prevPhase;
+          });
         }}
         status={status}
         participants={participants}
       />
+
+      {/* Easter Egg 4: Global Grinch Overscroll Pull-Down Overlay */}
+      <GrinchOverlay />
     </div>
   );
 };

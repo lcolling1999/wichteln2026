@@ -101,6 +101,7 @@ export const ColleagueSelector: React.FC<ColleagueSelectorProps> = ({
               <option
                 key={c.id}
                 value={String(c.id)}
+                data-registered={c.isRegistered ? 'true' : 'false'}
                 className={`bg-[#002752] ${
                   c.isRegistered ? 'text-amber-300 font-semibold' : 'text-slate-100'
                 }`}

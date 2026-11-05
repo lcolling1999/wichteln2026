@@ -1,11 +1,14 @@
 import React from 'react';
 import { soundEngine } from '../../audio/soundEngine';
+import { RudolphAvatar } from '../eastereggs/RudolphAvatar';
+import { Participant } from '../../types';
 
 interface HeaderProps {
   isMuted: boolean;
   onToggleMute: () => void;
   onAdminOpen?: () => void;
   showAdmin?: boolean;
+  currentUser?: Participant | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -13,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMute,
   onAdminOpen,
   showAdmin = false,
+  currentUser,
 }) => {
   return (
     <header className="relative z-20 w-full max-w-2xl mx-auto flex items-center justify-between px-3 py-3 sm:px-4">
@@ -23,7 +27,15 @@ export const Header: React.FC<HeaderProps> = ({
         </span>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 sm:space-x-3">
+        {/* Rudolph Avatar: available across all phases */}
+        <RudolphAvatar
+          size="sm"
+          displayName={currentUser?.displayName || currentUser?.name || 'Mein Profil'}
+          initials={currentUser ? (currentUser.displayName || currentUser.name).slice(0, 2).toUpperCase() : '🎄'}
+          isCurrentUser={!!currentUser}
+          testId={currentUser ? 'my-avatar' : 'rudolph-avatar'}
+        />
         {showAdmin && onAdminOpen && (
           <button
             type="button"
