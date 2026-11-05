@@ -33,7 +33,7 @@ export const config: ServerConfig = {
   expectedOrigins: process.env.ORIGINS
     ? process.env.ORIGINS.split(',').map((o) => o.trim())
     : defaultOrigins,
-  sessionMaxAgeMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+  sessionMaxAgeMs: 365 * 24 * 60 * 60 * 1000, // 365 days (participants stay logged in on their phone)
   challengeTtlMs: 5 * 60 * 1000, // 5 minutes
   adminPin: process.env.ADMIN_PIN || 'wichteln2026',
   allowPartialDraw: process.env.ALLOW_PARTIAL_DRAW === 'true',

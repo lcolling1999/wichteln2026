@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useCardTilt } from '../../hooks/useSensors';
 
 export interface HolographicCardProps {
@@ -20,7 +20,23 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
   });
 
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isFlipping, setIsFlipping] = useState(false);
   const tapTimesRef = useRef<number[]>([]);
+  const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
+    };
+  }, []);
+
+  /** Flip with its own smooth 0.6s animation - even while the gyroscope drives the tilt */
+  const toggleFlip = () => {
+    setIsFlipping(true);
+    if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
+    flipTimerRef.current = setTimeout(() => setIsFlipping(false), 650);
+    setIsFlipped((prev) => !prev);
+  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Prevent accidental flip when user clicks or selects text inside inputs/textareas/buttons
@@ -33,13 +49,13 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
     tapTimesRef.current = [...tapTimesRef.current.filter((t) => now - t < 600), now];
     if (tapTimesRef.current.length >= 3) {
       tapTimesRef.current = [];
-      setIsFlipped((prev) => !prev);
+      toggleFlip();
       onTripleTap?.();
     }
   };
 
   const handleManualFlip = () => {
-    setIsFlipped((prev) => !prev);
+    toggleFlip();
   };
 
   // 3D Rotation mechanics: rotates 180° around Y-axis while preserving perspective tilt
@@ -49,7 +65,13 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
       ? `${tiltStyle.transform} rotateY(180deg)`
       : tiltStyle.transform,
     transformStyle: 'preserve-3d',
-    transition: isGyroActive ? 'none' : 'transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)',
+    // Gyro: short linear transition (smooths sensor steps). Flip: full animation.
+    transition: isFlipping
+      ? 'transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)'
+      : isGyroActive
+      ? 'transform 0.1s linear'
+      : 'transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)',
+    willChange: 'transform',
   };
 
   return (

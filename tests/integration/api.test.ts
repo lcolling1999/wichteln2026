@@ -139,7 +139,7 @@ describe('Express REST API Integration Tests', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.isAdmin).toBe(true);
       expect(res.headers['set-cookie']).toBeDefined();
-      expect(res.headers['set-cookie'][0]).toMatch(/session_token=/);
+      expect(res.headers['set-cookie'][0]).toMatch(/admin_token=/);
     });
   });
 

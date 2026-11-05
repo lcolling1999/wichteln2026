@@ -9,6 +9,8 @@ export interface MatrixScrambleTextProps {
   durationMs?: number;
   onComplete?: () => void;
   className?: string;
+  /** When false the name is shown immediately (no decryption animation, no sound) */
+  animate?: boolean;
 }
 
 export const MatrixScrambleText: React.FC<MatrixScrambleTextProps> = ({
@@ -16,6 +18,7 @@ export const MatrixScrambleText: React.FC<MatrixScrambleTextProps> = ({
   durationMs = 2400,
   onComplete,
   className = '',
+  animate = true,
 }) => {
   const characters = Array.from(targetText);
   const length = characters.length;
@@ -24,13 +27,24 @@ export const MatrixScrambleText: React.FC<MatrixScrambleTextProps> = ({
     MATRIX_GLYPHS[Math.floor(Math.random() * MATRIX_GLYPHS.length)];
 
   const [displayText, setDisplayText] = useState<string>(() =>
-    characters.map((char) => (char === ' ' ? ' ' : getRandomGlyph())).join('')
+    animate
+      ? characters.map((char) => (char === ' ' ? ' ' : getRandomGlyph())).join('')
+      : targetText
   );
-  const [settledCount, setSettledCount] = useState<number>(0);
+  const [settledCount, setSettledCount] = useState<number>(animate ? 0 : length);
   const lastSettledRef = useRef<number>(0);
   const completedRef = useRef<boolean>(false);
+  // Keep the latest callback without restarting the animation when the parent re-renders
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
+    if (!animate) {
+      setDisplayText(targetText);
+      setSettledCount(Array.from(targetText).length);
+      return;
+    }
+
     completedRef.current = false;
     lastSettledRef.current = 0;
     const wildDuration = 400; // Initial wild scramble before settling begins
@@ -46,7 +60,7 @@ export const MatrixScrambleText: React.FC<MatrixScrambleTextProps> = ({
           setDisplayText(targetText);
           setSettledCount(length);
           soundEngine.playRevealChime();
-          onComplete?.();
+          onCompleteRef.current?.();
         }
         return;
       }
@@ -76,7 +90,7 @@ export const MatrixScrambleText: React.FC<MatrixScrambleTextProps> = ({
 
     animationFrameId = requestAnimationFrame(updateFrame);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [targetText, durationMs, onComplete, length]);
+  }, [targetText, durationMs, length, animate]);
 
   return (
     <div

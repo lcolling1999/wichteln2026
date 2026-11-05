@@ -131,7 +131,10 @@ authRouter.get('/me', (req: Request, res: Response) => {
  * POST /api/auth/logout
  */
 authRouter.post('/logout', (req: Request, res: Response) => {
-  const sessionId = req.user?.sessionId;
+  // Participant logout keeps a possible organiser (admin) session untouched.
+  // Without a participant session, the admin-only session is terminated instead.
+  const sessionId = req.user?.participantSessionId ?? req.user?.sessionId;
+  const adminOnly = !!req.user && req.user.participantSessionId === undefined && req.user.isAdmin;
   if (sessionId) {
     try {
       const db = getDatabase();
@@ -143,5 +146,8 @@ authRouter.post('/logout', (req: Request, res: Response) => {
   }
 
   res.clearCookie('session_token', { path: '/' });
+  if (adminOnly) {
+    res.clearCookie('admin_token', { path: '/' });
+  }
   res.status(200).json({ success: true });
 });

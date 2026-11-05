@@ -85,6 +85,50 @@ export function calculateParallaxShine(
   return { shineX, shineY, gradientAngle };
 }
 
+export interface GyroBaseline {
+  beta: number;
+  gamma: number;
+}
+
+/** Degrees of device tilt (relative to the calibrated reading pose) that map to the full card tilt */
+export const GYRO_RANGE_DEG = 30;
+/** Tilt changes below this threshold are ignored (sensor noise) */
+export const GYRO_DEADZONE_DEG = 1.2;
+
+/**
+ * Gyroscope tilt relative to a calibrated baseline (the pose in which the phone is held while
+ * reading the card). Absolute beta/gamma values are useless for this: with the phone held
+ * upright beta is already ~60-90deg, which used to pin the card at its maximum tilt on Android.
+ */
+export function calculateRelativeGyroTilt(
+  beta: number | null,
+  gamma: number | null,
+  baseline: GyroBaseline | null,
+  maxDeg = 20,
+  rangeDeg = GYRO_RANGE_DEG,
+  deadzoneDeg = GYRO_DEADZONE_DEG
+): { rotateX: number; rotateY: number } {
+  if (beta === null || gamma === null || baseline === null) {
+    return { rotateX: 0, rotateY: 0 };
+  }
+  const applyDeadzone = (v: number) =>
+    Math.abs(v) <= deadzoneDeg ? 0 : v - Math.sign(v) * deadzoneDeg;
+
+  const dBeta = Math.max(-rangeDeg, Math.min(rangeDeg, applyDeadzone(beta - baseline.beta)));
+  const dGamma = Math.max(-rangeDeg, Math.min(rangeDeg, applyDeadzone(gamma - baseline.gamma)));
+  const rawX = Math.round(((-dBeta) / rangeDeg) * maxDeg * 100) / 100;
+  const rawY = Math.round((dGamma / rangeDeg) * maxDeg * 100) / 100;
+  return {
+    rotateX: rawX === 0 ? 0 : rawX,
+    rotateY: rawY === 0 ? 0 : rawY,
+  };
+}
+
+/** Exponential smoothing (low-pass filter) to remove sensor jitter */
+export function smoothValue(previous: number, next: number, alpha = 0.18): number {
+  return previous + (next - previous) * alpha;
+}
+
 /**
  * Sensor hook returning gyroscope orientation with mouse fallback
  */
@@ -183,18 +227,78 @@ export function useCardTilt(options: UseCardTiltOptions = {}): CardTiltResult {
       return;
     }
 
+    // Calibration / smoothing state (kept in refs: sensor events fire at 60Hz+)
+    const baselineRef: { current: GyroBaseline | null } = { current: null };
+    const eventCountRef = { current: 0 };
+    const smoothRef = { x: 0, y: 0 };
+    const pendingRef: { current: { rotateX: number; rotateY: number } | null } = { current: null };
+    let rafId = 0;
+
+    const flush = () => {
+      rafId = 0;
+      const next = pendingRef.current;
+      if (!next) return;
+      pendingRef.current = null;
+      setAngles((prev) =>
+        Math.abs(prev.rotateX - next.rotateX) < 0.05 && Math.abs(prev.rotateY - next.rotateY) < 0.05
+          ? prev
+          : next
+      );
+    };
+
     const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.beta !== null && e.gamma !== null) {
-        lastGyroTimeRef.current = Date.now();
-        setIsGyroActive(true);
-        const { rotateX, rotateY } = calculateGyroTilt(e.beta, e.gamma, maxTiltDeg);
-        setAngles({ rotateX, rotateY });
+      if (e.beta === null || e.gamma === null) return;
+
+      lastGyroTimeRef.current = Date.now();
+      setIsGyroActive(true);
+
+      const count = ++eventCountRef.current;
+      const baseline = baselineRef.current;
+      if (!baseline) {
+        // First reading = the pose the phone is held in while looking at the card
+        baselineRef.current = { beta: e.beta, gamma: e.gamma };
+        return;
       }
+
+      // Fast re-centering during the first moments (phone is still being raised),
+      // afterwards the baseline only follows very slowly so real tilting stays visible.
+      const follow = count < 90 ? 0.06 : 0.008;
+      baseline.beta += (e.beta - baseline.beta) * follow;
+      baseline.gamma += (e.gamma - baseline.gamma) * follow;
+
+      const target = calculateRelativeGyroTilt(e.beta, e.gamma, baseline, maxTiltDeg);
+      smoothRef.x = smoothValue(smoothRef.x, target.rotateX);
+      smoothRef.y = smoothValue(smoothRef.y, target.rotateY);
+
+      pendingRef.current = {
+        rotateX: Math.round(smoothRef.x * 100) / 100,
+        rotateY: Math.round(smoothRef.y * 100) / 100,
+      };
+      if (!rafId) rafId = window.requestAnimationFrame(flush);
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
+
+    // iOS 13+ only delivers sensor data after an explicit permission request from a user gesture
+    const orientationApi = (window as any).DeviceOrientationEvent;
+    const needsPermission = typeof orientationApi?.requestPermission === 'function';
+    const requestOnGesture = () => {
+      window.removeEventListener('pointerdown', requestOnGesture);
+      try {
+        const result = orientationApi.requestPermission();
+        if (result && typeof result.catch === 'function') result.catch(() => {});
+      } catch {
+        // permission request not possible - mouse/touch fallback stays active
+      }
+    };
+    if (needsPermission) {
+      window.addEventListener('pointerdown', requestOnGesture);
+    }
+
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
+      window.removeEventListener('pointerdown', requestOnGesture);
+      if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [maxTiltDeg]);
 

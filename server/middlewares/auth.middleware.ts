@@ -2,12 +2,19 @@ import { Request, Response, NextFunction } from 'express';
 import { getDatabase } from '../db/database.js';
 import { createQueryLayer } from '../db/queries.js';
 
+export const PARTICIPANT_COOKIE = 'session_token';
+export const ADMIN_COOKIE = 'admin_token';
+
 export interface RequestUser {
   id: number | null; // null for admin-only session
   name?: string;
   displayName?: string;
   isAdmin: boolean;
   sessionId: string;
+  /** Session id of the participant (passkey) session, if any. */
+  participantSessionId?: string;
+  /** Session id of the admin (PIN) session, if any. */
+  adminSessionId?: string;
 }
 
 declare global {
@@ -19,32 +26,59 @@ declare global {
 }
 
 /**
- * Middleware: Parses session token from cookie or Authorization header and attaches req.user
+ * Middleware: Parses session tokens from the participant cookie, the separate admin cookie
+ * or the Authorization header and attaches a merged req.user.
+ *
+ * Participant (passkey) and admin (PIN) sessions live in separate cookies so that opening the
+ * admin area never overwrites the participant's own login.
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const token =
-    req.cookies?.session_token ||
-    (req.headers.authorization?.startsWith('Bearer ')
-      ? req.headers.authorization.slice(7).trim()
-      : null);
+  const tokens: string[] = [];
+  const participantCookie = req.cookies?.[PARTICIPANT_COOKIE];
+  const adminCookie = req.cookies?.[ADMIN_COOKIE];
+  if (typeof participantCookie === 'string' && participantCookie) tokens.push(participantCookie);
+  if (typeof adminCookie === 'string' && adminCookie) tokens.push(adminCookie);
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    const bearer = req.headers.authorization.slice(7).trim();
+    if (bearer) tokens.push(bearer);
+  }
 
-  if (!token) {
+  if (tokens.length === 0) {
     return next();
   }
 
   try {
     const db = getDatabase();
     const q = createQueryLayer(db);
-    const session = q.getSession(token);
 
-    if (session) {
-      req.user = {
-        id: session.participant_id,
-        name: session.name,
-        displayName: session.display_name,
-        isAdmin: Boolean(session.is_admin),
-        sessionId: session.id,
-      };
+    let user: RequestUser | undefined;
+    for (const token of tokens) {
+      const session = q.getSession(token);
+      if (!session) continue;
+
+      if (!user) {
+        user = { id: null, isAdmin: false, sessionId: session.id };
+      }
+
+      if (session.participant_id !== null && user.id === null) {
+        user.id = session.participant_id;
+        user.name = session.name;
+        user.displayName = session.display_name;
+        user.participantSessionId = session.id;
+        user.sessionId = session.id;
+      }
+
+      if (session.is_admin) {
+        user.isAdmin = true;
+        user.adminSessionId = session.id;
+        if (user.id === null) {
+          user.sessionId = session.id;
+        }
+      }
+    }
+
+    if (user) {
+      req.user = user;
     }
   } catch (err) {
     console.error('Session lookup error:', err);

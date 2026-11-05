@@ -392,7 +392,7 @@ export function createQueryLayer(db: DatabaseSync) {
     },
 
     // Sessions
-    createSession(participantId: number | null, isAdmin: boolean, ttlDays = 30): string {
+    createSession(participantId: number | null, isAdmin: boolean, ttlDays = 365): string {
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
       stmts.insertSession.run(token, participantId, isAdmin ? 1 : 0, expiresAt);

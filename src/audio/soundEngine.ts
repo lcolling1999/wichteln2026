@@ -247,6 +247,73 @@ export class SoundEngine {
   }
 
   /**
+   * 2b. playSafeProximityTick(level):
+   * Graduated "warm/cold" tick for the combination lock. Higher level = closer to the bolt:
+   * higher pitch, louder, slightly longer and (from level 2) with a soft warm ping on top.
+   */
+  public playSafeProximityTick(level: number): void {
+    if (this.isMuted) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const lvl = Math.max(0, Math.min(3, Math.round(level)));
+      const startFreq = [1800, 2300, 2900, 3500][lvl];
+      const gainPeak = [0.1, 0.16, 0.24, 0.32][lvl];
+      const dur = [0.008, 0.012, 0.018, 0.026][lvl];
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(startFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(startFreq * 0.4, now + dur);
+      gain.gain.setValueAtTime(gainPeak, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.connect(gain);
+      gain.connect(this.masterGain || ctx.destination);
+      osc.start(now);
+      osc.stop(now + dur + 0.002);
+
+      if (lvl >= 2) {
+        const ping = ctx.createOscillator();
+        const pingGain = ctx.createGain();
+        ping.type = 'sine';
+        ping.frequency.setValueAtTime(lvl === 3 ? 1046 : 784, now);
+        pingGain.gain.setValueAtTime(lvl === 3 ? 0.12 : 0.06, now);
+        pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        ping.connect(pingGain);
+        pingGain.connect(this.masterGain || ctx.destination);
+        ping.start(now);
+        ping.stop(now + 0.075);
+      }
+    } catch {}
+  }
+
+  /**
+   * 2c. playSafeDull():
+   * Soft, low and dull tick: the dial is turned in the wrong direction for the current bolt.
+   */
+  public playSafeDull(): void {
+    if (this.isMuted) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(230, now);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.03);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      osc.connect(gain);
+      gain.connect(this.masterGain || ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.032);
+    } catch {}
+  }
+
+  /**
    * 3. playBoltLock():
    * Mechanical bolt lock clunk (dual oscillator: low punch 120Hz + metallic resonance 640Hz).
    */

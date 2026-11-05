@@ -6,12 +6,15 @@ export interface TeaserSentenceProps {
   sentence: string;
   keywords?: Keyword[];
   isVisible?: boolean;
+  /** When false the sentence is shown right away without the word-by-word animation */
+  animate?: boolean;
 }
 
 export const TeaserSentence: React.FC<TeaserSentenceProps> = ({
   sentence,
   keywords = [],
   isVisible = true,
+  animate = true,
 }) => {
   if (!isVisible || !sentence) return null;
 
@@ -57,7 +60,7 @@ export const TeaserSentence: React.FC<TeaserSentenceProps> = ({
           <motion.span
             key={idx}
             custom={idx}
-            initial="hidden"
+            initial={animate ? 'hidden' : false}
             animate="visible"
             variants={wordVariants}
             data-word={cleanWord}

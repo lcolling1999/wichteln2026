@@ -11,6 +11,7 @@ import { GrinchOverlay } from './components/eastereggs/GrinchOverlay';
 import { useLobbyPoll } from './hooks/useLobbyPoll';
 import { useShake } from './hooks/useShake';
 import { soundEngine } from './audio/soundEngine';
+import { isVaultUnlocked, markVaultUnlocked } from './utils/vaultStorage';
 import { AppPhase, Participant } from './types';
 
 export const App: React.FC = () => {
@@ -45,14 +46,15 @@ export const App: React.FC = () => {
         if (data.authenticated && data.participant) {
           setCurrentUser(data.participant);
           if (status?.isDrawn) {
-            setPhase('phase3_safedial');
+            const alreadyUnlocked = isVaultUnlocked(data.participant.id, status?.verificationHash);
+            setPhase(alreadyUnlocked ? 'phase4_reveal' : 'phase3_safedial');
           } else {
             setPhase('phase2_lobby');
           }
         }
       })
       .catch(() => {});
-  }, [status?.isDrawn]);
+  }, [status?.isDrawn, status?.verificationHash]);
 
   // First user interaction initializes AudioContext without unhandled rejections (TC-F9-01, TC-F9-05)
   useEffect(() => {
@@ -86,7 +88,8 @@ export const App: React.FC = () => {
     setCurrentUser(participant);
     refetch();
     if (status?.isDrawn) {
-      setPhase('phase3_safedial');
+      const alreadyUnlocked = isVaultUnlocked(participant.id, status?.verificationHash);
+      setPhase(alreadyUnlocked ? 'phase4_reveal' : 'phase3_safedial');
     } else {
       setPhase('phase2_lobby');
     }
@@ -129,12 +132,20 @@ export const App: React.FC = () => {
         )}
 
         {phase === 'phase3_safedial' && (
-          <SafeVaultContainer onUnlock={() => setPhase('phase4_reveal')} />
+          <SafeVaultContainer
+            onUnlock={() => {
+              if (currentUser) {
+                markVaultUnlocked(currentUser.id, status?.verificationHash);
+              }
+              setPhase('phase4_reveal');
+            }}
+          />
         )}
 
         {phase === 'phase4_reveal' && (
           <PartnerReveal
             currentUser={currentUser}
+            drawHash={status?.verificationHash}
             onBackToLobby={() => setPhase('phase2_lobby')}
           />
         )}

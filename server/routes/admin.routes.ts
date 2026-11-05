@@ -1,19 +1,25 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { adminService, verifyAdminPin } from '../services/admin.service.js';
 import { adminRateLimitMiddleware, adminLoginLimiter } from '../middlewares/rateLimit.js';
-import { requireAdmin } from '../middlewares/auth.middleware.js';
+import { requireAdmin, ADMIN_COOKIE } from '../middlewares/auth.middleware.js';
 import { webauthnService } from '../services/webauthn.service.js';
 import { config } from '../config.js';
 
 export const adminRouter = Router();
 
-function setSessionCookie(res: Response, token: string): void {
-  res.cookie('session_token', token, {
+const ADMIN_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+/**
+ * Admin sessions use their own cookie so that they never overwrite the participant's
+ * passkey session (otherwise the organiser would be logged out as colleague after the draw).
+ */
+function setAdminCookie(res: Response, token: string): void {
+  res.cookie(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: config.isProduction,
     path: '/',
-    maxAge: config.sessionMaxAgeMs,
+    maxAge: ADMIN_SESSION_MAX_AGE_MS,
   });
 }
 
@@ -41,9 +47,9 @@ adminRouter.post(
       // Reset rate limit attempts on success
       adminLoginLimiter.reset(ip);
 
-      // Create admin session
+      // Create admin session (separate cookie, keeps participant login intact)
       const token = webauthnService.createSession(null, true);
-      setSessionCookie(res, token);
+      setAdminCookie(res, token);
 
       res.status(200).json({
         success: true,
@@ -74,7 +80,7 @@ adminRouter.get('/overview', requireAdmin, (req: Request, res: Response, next: N
  */
 adminRouter.post('/draw', requireAdmin, (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = adminService.executeDraw(req.user!.sessionId);
+    const result = adminService.executeDraw(req.user!.adminSessionId ?? req.user!.sessionId);
     res.status(200).json(result);
   } catch (err) {
     next(err);

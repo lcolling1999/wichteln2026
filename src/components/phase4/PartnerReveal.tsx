@@ -1,28 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { HolographicCard } from './HolographicCard';
 import { MatrixScrambleText } from './MatrixScrambleText';
 import { TeaserSentence } from './TeaserSentence';
 import { EmojiPopChip } from './EmojiPop';
 import { SecretWishlistNotepad } from '../eastereggs/SecretWishlistNotepad';
-import { soundEngine } from '../../audio/soundEngine';
+import { hasSeenReveal, markRevealSeen } from '../../utils/vaultStorage';
 import { AssignmentData, Participant } from '../../types';
 
 export interface PartnerRevealProps {
   currentUser?: Participant | null;
   onBackToLobby?: () => void;
   initialAssignment?: AssignmentData | null;
+  /** Verification hash of the draw - used to remember per draw that the reveal was already shown */
+  drawHash?: string | null;
 }
 
 export const PartnerReveal: React.FC<PartnerRevealProps> = ({
   currentUser,
   onBackToLobby,
   initialAssignment,
+  drawHash,
 }) => {
   const [data, setData] = useState<AssignmentData | null>(initialAssignment ?? null);
   const [loading, setLoading] = useState<boolean>(!initialAssignment);
   const [error, setError] = useState<string | null>(null);
   const [isRevealed, setIsRevealed] = useState<boolean>(false);
+
+  // The big reveal (decryption + confetti + chime) is played exactly once per device and draw.
+  // On later visits the card is shown calm and static. Evaluated once on mount.
+  const [playRevealAnimation] = useState<boolean>(() =>
+    currentUser ? !hasSeenReveal(currentUser.id, drawHash) : true
+  );
 
   const fetchAssignment = () => {
     setLoading(true);
@@ -55,9 +64,10 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
     }
   }, [initialAssignment]);
 
-  const handleScrambleComplete = () => {
+  const handleScrambleComplete = useCallback(() => {
     setIsRevealed(true);
-    soundEngine.playRevealChime();
+    if (currentUser) markRevealSeen(currentUser.id, drawHash);
+    // Chime is already played by MatrixScrambleText itself - only the confetti is added here
     try {
       confetti({
         particleCount: 80,
@@ -68,7 +78,7 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
     } catch {
       // Graceful degradation if canvas context restricted
     }
-  };
+  }, [currentUser, drawHash]);
 
   if (loading) {
     return (
@@ -149,10 +159,11 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
           <span>✨</span>
         </div>
 
-        {/* Matrix Scramble Decryption */}
+        {/* Matrix Scramble Decryption (first time only - static afterwards) */}
         <MatrixScrambleText
           targetText={data.partner.displayName || data.partner.name}
           durationMs={2400}
+          animate={playRevealAnimation}
           onComplete={handleScrambleComplete}
         />
 
@@ -162,6 +173,7 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
             sentence={data.teaser.sentence}
             keywords={data.teaser.keywords}
             isVisible={true}
+            animate={playRevealAnimation}
           />
         )}
 
