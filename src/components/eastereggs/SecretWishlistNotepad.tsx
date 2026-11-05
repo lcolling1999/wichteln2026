@@ -3,11 +3,14 @@ import React, { useState, useEffect, useRef } from 'react';
 export interface SecretWishlistNotepadProps {
   partnerName?: string;
   onFlipBack?: () => void;
+  /** Whether the draw has already happened. If false, only personal wishlist is shown (no partner peek). */
+  isDrawn?: boolean;
 }
 
 export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
   partnerName = 'dein Wichtelpartner',
   onFlipBack,
+  isDrawn = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'mine' | 'partner'>('mine');
   const [content, setContent] = useState<string>('');
@@ -180,18 +183,20 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
             <span className="text-slate-400 font-mono text-[11px]">{content.length}/2000</span>
           </div>
 
-          {/* Peek Partner Wishlist Button */}
-          <div className="pt-2 border-t border-white/10 flex justify-center">
-            <button
-              type="button"
-              data-testid="peek-partner-wishlist-btn"
-              onClick={handlePeekPartner}
-              className="px-4 py-2 rounded-xl bg-amber-400/25 hover:bg-amber-400/35 border border-amber-300/50 text-amber-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
-            >
-              <span className="text-sm">👀</span>
-              <span>Wunschzettel von {partnerName} ansehen</span>
-            </button>
-          </div>
+          {/* Peek Partner Wishlist Button (only post-draw) */}
+          {isDrawn && (
+            <div className="pt-2 border-t border-white/10 flex justify-center">
+              <button
+                type="button"
+                data-testid="peek-partner-wishlist-btn"
+                onClick={handlePeekPartner}
+                className="px-4 py-2 rounded-xl bg-amber-400/25 hover:bg-amber-400/35 border border-amber-300/50 text-amber-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+              >
+                <span className="text-sm">👀</span>
+                <span>Wunschzettel von {partnerName} ansehen</span>
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         /* Partner Wishlist View */

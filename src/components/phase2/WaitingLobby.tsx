@@ -3,6 +3,7 @@ import { Participant, DrawStatus } from '../../types';
 import { TreeLobby } from './TreeLobby';
 import { LiveCounter } from './LiveCounter';
 import { AdminModal } from '../admin/AdminModal';
+import { SecretWishlistNotepad } from '../eastereggs/SecretWishlistNotepad';
 import { soundEngine } from '../../audio/soundEngine';
 
 interface WaitingLobbyProps {
@@ -21,6 +22,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   reducedMotion = false,
 }) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
 
   const registeredCount =
     status?.registeredCount ?? participants.filter((p) => p.isRegistered).length;
@@ -68,9 +70,17 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
         />
       </div>
 
-      {/* Footer Controls with Admin Button */}
+      {/* Footer Controls with Wishlist & Admin Button */}
       <div className="w-full flex items-center justify-between pt-4 border-t border-white/10 text-xs text-white/50 px-2">
-        <span>Wichteln 2026</span>
+        {/* Wishlist Button in Lobby */}
+        <button
+          type="button"
+          onClick={() => setIsWishlistOpen(true)}
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/30 text-amber-200 transition-colors shadow-sm"
+        >
+          <span>📝</span>
+          <span className="font-semibold">Mein Wunschzettel</span>
+        </button>
 
         {isDrawn ? (
           <button
@@ -92,6 +102,26 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           </button>
         )}
       </div>
+
+      {/* Wishlist Modal Dialog in Lobby */}
+      {isWishlistOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+          onClick={() => setIsWishlistOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-lg p-5 rounded-3xl glass-card-gold border border-amber-400/40 shadow-2xl bg-gradient-to-b from-[#021f42] to-[#01142b]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SecretWishlistNotepad
+              onFlipBack={() => setIsWishlistOpen(false)}
+              isDrawn={false}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Admin Modal */}
       <AdminModal

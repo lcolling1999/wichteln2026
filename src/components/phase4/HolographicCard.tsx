@@ -82,7 +82,7 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
       onClick={handleCardClick}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`relative rounded-3xl glass-card-gold border border-amber-400/40 shadow-2xl p-6 sm:p-8 select-none overflow-hidden cursor-pointer ${className}`}
+      className={`relative rounded-3xl glass-card-gold border border-amber-400/40 shadow-2xl p-6 sm:p-8 select-none cursor-pointer ${className}`}
     >
       {/* Parallax Holographic Shine Overlay */}
       <div
@@ -105,10 +105,15 @@ export const HolographicCard: React.FC<HolographicCardProps> = ({
       {/* Back Face (Easter Egg 3 Secret Wishlist Notepad) */}
       {backContent && (
         <div
-          className={`absolute inset-0 z-10 p-5 sm:p-6 transition-opacity duration-300 [transform:rotateY(180deg)] ${
+          className={`absolute inset-0 z-10 p-5 sm:p-6 transition-opacity duration-300 ${
             isFlipped ? 'opacity-100 pointer-events-auto visible' : 'opacity-0 pointer-events-none invisible'
           }`}
-          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          style={{
+            transform: 'rotateY(180deg)',
+            WebkitTransform: 'rotateY(180deg)',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+          }}
         >
           {typeof backContent === 'function'
             ? backContent({ onFlipBack: handleManualFlip })
