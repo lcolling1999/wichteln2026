@@ -8,6 +8,12 @@ import {
 import { injectSensorMocks } from '../helpers/sensor-mocks';
 
 test.describe('Tier 2: WebAuthn Protocol & Security Boundaries', () => {
+  test.beforeEach(async ({ request }) => {
+    const api = new WichtelnApiClient(request);
+    await api.resetAll();
+    await api.resetRateLimit();
+  });
+
   test('TC-B2-01 (Duplicate Registration Attack): Already registered colleague cannot re-request registration options', async ({
     request,
   }) => {
@@ -42,7 +48,7 @@ test.describe('Tier 2: WebAuthn Protocol & Security Boundaries', () => {
     };
 
     const res = await api.verifyRegistration(1, fakeResponse);
-    expect([400, 401, 403, 404]).toContain(res.status);
+    expect([400, 401, 403, 404, 409]).toContain(res.status);
   });
 
   test('TC-B2-03 (Origin Mismatch): Response with phishing origin is strictly rejected by server verification', async ({

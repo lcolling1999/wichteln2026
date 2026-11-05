@@ -357,4 +357,6 @@ export async function simulateTopPullDown(
 
   await page.waitForTimeout(200);
   await page.mouse.up();
+  // Allow pull-down release gesture to settle
+  await page.waitForTimeout(100);
 }

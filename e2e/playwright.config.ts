@@ -33,8 +33,8 @@ export default defineConfig({
   /* Shared settings for all projects */
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:5173',
-    /* Collect trace when retrying the failed test */
-    trace: 'retain-on-failure',
+    /* Collect trace when retrying the failed test (disabled locally on Windows to prevent ENOENT teardown races) */
+    trace: process.env.CI ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
     video: 'off',
     /* Allow permissions required for sensors and clipboard */

@@ -4,8 +4,7 @@ import { CANONICAL_COLLEAGUES, WichtelnApiClient } from '../helpers/api-client';
 test.describe('Tier 1: Colleague Whitelist & Seeding (R1)', () => {
   test.beforeEach(async ({ request }) => {
     const api = new WichtelnApiClient(request);
-    await api.resetDrawState();
-    await api.resetRateLimit();
+    await api.resetAll();
   });
 
   test('TC-F1-01: System whitelist contains exactly the 24 pre-seeded colleagues', async ({

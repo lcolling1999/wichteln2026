@@ -250,5 +250,10 @@ export class WichtelnApiClient {
     const res = await this.request.post(`${this.baseURL}/api/test/reset-draw-state`);
     return { status: res.status(), body: await res.json() };
   }
+
+  async resetAll(): Promise<any> {
+    const res = await this.request.post(`${this.baseURL}/api/test/reset-all`);
+    return { status: res.status(), body: await res.json() };
+  }
 }
 

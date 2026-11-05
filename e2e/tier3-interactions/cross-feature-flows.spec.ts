@@ -105,6 +105,9 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
     if (await grinchOverlay.count() > 0) {
       await expect(grinchOverlay.first()).toBeVisible();
     }
+
+    // Allow animations and trace flushes to settle before context teardown
+    await page.waitForTimeout(300);
   });
 
   test('CF-07: Post-Reveal Logout & Re-Login restores viewed status without repeating safe dial', async ({
