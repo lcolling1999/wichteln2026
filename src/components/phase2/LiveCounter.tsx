@@ -7,9 +7,12 @@ interface LiveCounterProps {
 
 export const LiveCounter: React.FC<LiveCounterProps> = ({
   registeredCount,
-  totalParticipants = 24,
+  totalParticipants = 0,
 }) => {
-  const percentage = Math.min(100, Math.round((registeredCount / totalParticipants) * 100));
+  const percentage =
+    totalParticipants > 0
+      ? Math.min(100, Math.round((registeredCount / totalParticipants) * 100))
+      : 0;
 
   return (
     <div

@@ -9,6 +9,7 @@ export interface Participant {
   normalized_name: string;
   is_registered: number; // 0 or 1
   registered_at: string | null;
+  last_active_at?: string | null;
   created_at: string;
 }
 
@@ -248,6 +249,27 @@ export function createQueryLayer(db: DatabaseSync) {
     getParticipantById(id: number): Participant | null {
       return (stmts.getParticipantById.get(id) as unknown as Participant) || null;
     },
+    /**
+     * Records that a participant is using the app. Throttled in SQL to at most one write per minute,
+     * so frequent lobby polling does not cause a write on every request.
+     */
+    touchParticipantActivity(id: number): void {
+      db.prepare(
+        `UPDATE participants SET last_active_at = datetime('now')
+         WHERE id = ? AND (last_active_at IS NULL OR last_active_at < datetime('now', '-60 seconds'))`
+      ).run(id);
+    },
+    /** Last activity (UTC, SQLite datetime format) of the receiver assigned to the given giver */
+    getPartnerLastActive(giverId: number): { lastActiveAt: string | null } | null {
+      const row = db
+        .prepare(
+          `SELECT p.last_active_at AS lastActiveAt
+           FROM assignments a JOIN participants p ON a.receiver_id = p.id
+           WHERE a.giver_id = ?`
+        )
+        .get(giverId) as { lastActiveAt: string | null } | undefined;
+      return row ?? null;
+    },
     findParticipantByName(rawName: string): Participant | null {
       const normalized = rawName.trim().normalize('NFC').toLowerCase();
       return (stmts.getParticipantByNormalizedName.get(normalized) as unknown as Participant) || null;
@@ -383,6 +405,134 @@ export function createQueryLayer(db: DatabaseSync) {
     },
     upsertWishList(participantId: number, content: string): void {
       stmts.upsertWishList.run(participantId, content);
+    },
+    /**
+     * Marks a wishlist update for a debounced push notification (+10 minutes from now).
+     * Each subsequent edit pushes the due time forward so autosave bursts only trigger 1 push.
+     */
+    scheduleWishlistPush(participantId: number, delayMinutes = 10): void {
+      db.prepare(
+        `UPDATE wish_lists
+         SET pending_push_due_at = datetime('now', '+' || ? || ' minutes')
+         WHERE participant_id = ?`
+      ).run(delayMinutes, participantId);
+    },
+    /** Clears any pending wishlist push (e.g. if cleared before send) */
+    clearWishlistPush(participantId: number): void {
+      db.prepare(`UPDATE wish_lists SET pending_push_due_at = NULL WHERE participant_id = ?`).run(
+        participantId
+      );
+    },
+    /** Returns all wishlists whose 10-minute quiet period has elapsed, together with their assigned giver */
+    getDueWishlistPushes(): Array<{
+      receiverId: number;
+      receiverName: string;
+      giverId: number;
+    }> {
+      return db
+        .prepare(
+          `SELECT w.participant_id AS receiverId,
+                  p.display_name AS receiverName,
+                  a.giver_id AS giverId
+           FROM wish_lists w
+           JOIN participants p ON p.id = w.participant_id
+           JOIN assignments a ON a.receiver_id = w.participant_id
+           WHERE w.pending_push_due_at IS NOT NULL
+             AND w.pending_push_due_at <= datetime('now')`
+        )
+        .all() as Array<{ receiverId: number; receiverName: string; giverId: number }>;
+    },
+    upsertPushSubscription(
+      participantId: number,
+      endpoint: string,
+      p256dh: string,
+      auth: string
+    ): void {
+      db.prepare(
+        `INSERT INTO push_subscriptions (participant_id, endpoint, p256dh, auth)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(endpoint) DO UPDATE SET
+           participant_id = excluded.participant_id,
+           p256dh = excluded.p256dh,
+           auth = excluded.auth`
+      ).run(participantId, endpoint, p256dh, auth);
+    },
+    deletePushSubscription(endpoint: string, participantId?: number): void {
+      if (participantId !== undefined) {
+        db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ? AND participant_id = ?`).run(
+          endpoint,
+          participantId
+        );
+      } else {
+        db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).run(endpoint);
+      }
+    },
+    getPushSubscriptionsByParticipant(participantId: number): Array<{
+      id: number;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    }> {
+      return db
+        .prepare(
+          `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE participant_id = ?`
+        )
+        .all(participantId) as Array<{ id: number; endpoint: string; p256dh: string; auth: string }>;
+    },
+    getAllPushSubscriptions(): Array<{
+      id: number;
+      participant_id: number;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    }> {
+      return db
+        .prepare(`SELECT id, participant_id, endpoint, p256dh, auth FROM push_subscriptions`)
+        .all() as Array<{
+        id: number;
+        participant_id: number;
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+      }>;
+    },
+    getSubscriptionsPendingPartyReminder(): Array<{
+      id: number;
+      participant_id: number;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    }> {
+      return db
+        .prepare(
+          `SELECT id, participant_id, endpoint, p256dh, auth
+           FROM push_subscriptions
+           WHERE party_reminder_sent_at IS NULL`
+        )
+        .all() as Array<{
+        id: number;
+        participant_id: number;
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+      }>;
+    },
+    markPartyReminderSent(subscriptionId: number): void {
+      db.prepare(
+        `UPDATE push_subscriptions SET party_reminder_sent_at = datetime('now') WHERE id = ?`
+      ).run(subscriptionId);
+    },
+    getAppKv(key: string): string | null {
+      const row = db.prepare(`SELECT value FROM app_kv WHERE key = ?`).get(key) as
+        | { value: string }
+        | undefined;
+      return row ? row.value : null;
+    },
+    setAppKv(key: string, value: string): void {
+      db.prepare(
+        `INSERT INTO app_kv (key, value) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+      ).run(key, value);
     },
     getPartnerWishList(giverId: number): { partnerName: string; content: string } | null {
       return (

@@ -6,6 +6,7 @@ import { participantsRouter } from './routes/participants.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { meRouter, partnerRouter } from './routes/me.routes.js';
 import { adminRouter } from './routes/admin.routes.js';
+import { pushRouter } from './routes/push.routes.js';
 import { testRouter } from './routes/test.routes.js';
 import { authMiddleware } from './middlewares/auth.middleware.js';
 import { errorHandler } from './middlewares/errorHandler.js';
@@ -49,6 +50,7 @@ export function createApp(): Express {
   app.use('/api/me', meRouter);
   app.use('/api/partner', partnerRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/push', pushRouter);
 
   // Test and test isolation routes in development / testing mode
   if (!config.isProduction) {

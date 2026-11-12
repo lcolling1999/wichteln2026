@@ -6,11 +6,17 @@ import { TeaserSentence } from './TeaserSentence';
 import { EmojiPopChip } from './EmojiPop';
 import { SecretWishlistNotepad } from '../eastereggs/SecretWishlistNotepad';
 import { hasSeenReveal, markRevealSeen } from '../../utils/vaultStorage';
+import { REFRESH_EVENT } from '../common/PullToRefresh';
+import { PartnerActivityBadge } from './PartnerActivityBadge';
+import { PartyCountdown } from '../common/PartyCountdown';
+import { PushToggleButton } from '../common/PushToggleButton';
 import { AssignmentData, Participant } from '../../types';
 
 export interface PartnerRevealProps {
   currentUser?: Participant | null;
   onBackToLobby?: () => void;
+  /** Called when the session expired - leads back to the login screen */
+  onRelogin?: () => void;
   initialAssignment?: AssignmentData | null;
   /** Verification hash of the draw - used to remember per draw that the reveal was already shown */
   drawHash?: string | null;
@@ -19,6 +25,7 @@ export interface PartnerRevealProps {
 export const PartnerReveal: React.FC<PartnerRevealProps> = ({
   currentUser,
   onBackToLobby,
+  onRelogin,
   initialAssignment,
   drawHash,
 }) => {
@@ -64,6 +71,15 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
     }
   }, [initialAssignment]);
 
+  // Pull-to-refresh: re-check the assignment while it is not available yet (draw pending / error)
+  useEffect(() => {
+    const onRefresh = () => {
+      if (!initialAssignment && (error || !data?.isDrawn || !data?.partner)) fetchAssignment();
+    };
+    window.addEventListener(REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(REFRESH_EVENT, onRefresh);
+  }, [initialAssignment, error, data]);
+
   const handleScrambleComplete = useCallback(() => {
     setIsRevealed(true);
     if (currentUser) markRevealSeen(currentUser.id, drawHash);
@@ -104,13 +120,13 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
         <p className="text-sm text-slate-300">
           Bitte melde dich per Passkey an, um deinen Partner zu sehen.
         </p>
-        {onBackToLobby && (
+        {(onRelogin || onBackToLobby) && (
           <button
             type="button"
-            onClick={onBackToLobby}
+            onClick={onRelogin ?? onBackToLobby}
             className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold hover:bg-amber-300 transition-colors cursor-pointer"
           >
-            Zurück zur Übersicht
+            {onRelogin ? 'Zur Anmeldung' : 'Zurück zur Übersicht'}
           </button>
         )}
       </div>
@@ -167,6 +183,13 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
           onComplete={handleScrambleComplete}
         />
 
+        {/* Coarse last-activity of the partner - reserve height so the teaser below never jumps */}
+        <div className="min-h-[30px] flex items-center justify-center">
+          {(isRevealed || !playRevealAnimation) && (
+            <PartnerActivityBadge partnerName={data.partner.displayName || data.partner.name} />
+          )}
+        </div>
+
         {/* Word-by-Word 3D Blur-to-Focus Teaser Sentence */}
         {data.teaser && (
           <TeaserSentence
@@ -192,6 +215,12 @@ export const PartnerReveal: React.FC<PartnerRevealProps> = ({
           <span>Tippe 3× auf die Karte für den geheimen Wunschzettel</span>
         </div>
       </HolographicCard>
+
+      {/* Optional Push Notifications & PWA Install Hint */}
+      <PushToggleButton className="mt-5 mb-2" />
+
+      {/* Floating Countdown Bottom Bar */}
+      <PartyCountdown />
     </div>
   );
 };

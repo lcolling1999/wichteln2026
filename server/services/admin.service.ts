@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { getDatabase, runTransaction } from '../db/database.js';
 import { createQueryLayer } from '../db/queries.js';
 import { generateSingleCycleDerangement } from './derangement.service.js';
+import { sendDrawCompleteNotifications } from './push.service.js';
 
 export class AdminError extends Error {
   constructor(
@@ -52,15 +53,16 @@ export class AdminService {
     }
 
     const registered = q.getRegisteredParticipants();
+    const totalParticipants = q.getAllParticipants().length;
     const allowPartial = config.allowPartialDraw;
 
     if (!allowPartial) {
-      if (registered.length !== 24) {
+      if (registered.length !== totalParticipants) {
         throw new AdminError(
           400,
-          `Auslosung nicht möglich: Erst ${registered.length} von 24 Kollegen sind registriert.`,
+          `Auslosung nicht möglich: Erst ${registered.length} von ${totalParticipants} Kollegen sind registriert.`,
           'REGISTRATIONS_INCOMPLETE',
-          { registeredCount: registered.length, requiredCount: 24 }
+          { registeredCount: registered.length, requiredCount: totalParticipants }
         );
       }
     } else {
@@ -91,6 +93,11 @@ export class AdminService {
         verificationHash: derangement.verificationHash,
         drawnAt,
       });
+    });
+
+    // Notify all subscribed participants in the background without blocking the admin response
+    sendDrawCompleteNotifications().catch((err) => {
+      console.error('[Push] Fehler bei Auslosungs-Benachrichtigung:', err);
     });
 
     return {
@@ -137,7 +144,7 @@ export class AdminService {
 
     return {
       registeredCount,
-      totalParticipants: 24,
+      totalParticipants: allParticipants.length,
       isDrawn: Boolean(drawStatus.is_drawn),
       drawnAt: drawStatus.drawn_at,
       verificationHash: drawStatus.verification_hash,

@@ -4,6 +4,7 @@ import { initializeSchema } from './db/schema.js';
 import { seedDatabase } from './db/seeds.js';
 import { createQueryLayer } from './db/queries.js';
 import { createApp } from './app.js';
+import { processPendingPushNotifications } from './services/push.service.js';
 
 // 1. Initialize SQLite Database & Pragmas
 const db = getDatabase();
@@ -32,6 +33,17 @@ if (gcTimer.unref) {
   gcTimer.unref();
 }
 
+// 3b. Periodic Push Notification Dispatcher (debounced wishlist updates & 3-day party reminder)
+const PUSH_CHECK_INTERVAL_MS = 60 * 1000;
+const pushTimer = setInterval(() => {
+  processPendingPushNotifications().catch((err) => {
+    console.error('[Push] Error processing pending push notifications:', err);
+  });
+}, PUSH_CHECK_INTERVAL_MS);
+if (pushTimer.unref) {
+  pushTimer.unref();
+}
+
 // 4. Create & Start Express Server
 const app = createApp();
 
@@ -43,6 +55,7 @@ const server = app.listen(config.port, () => {
 function gracefulShutdown(signal: string): void {
   console.log(`[Server] Received ${signal}. Shutting down...`);
   clearInterval(gcTimer);
+  clearInterval(pushTimer);
   server.close(() => {
     try {
       db.close();

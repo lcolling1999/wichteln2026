@@ -129,7 +129,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const registeredCount = status?.registeredCount ?? participants.filter((p) => p.isRegistered).length;
   const isDrawn = status?.isDrawn ?? false;
-  const canDraw = registeredCount === 24 && !isDrawn;
+  const totalParticipants = status?.totalParticipants ?? participants.length;
+  const canDraw = totalParticipants > 0 && registeredCount === totalParticipants && !isDrawn;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
@@ -206,7 +207,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-slate-400">Registriert:</span>
                 <span className="font-bold text-amber-300">
-                  {registeredCount} / 24
+                  {registeredCount} / {totalParticipants}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -239,7 +240,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
               {!canDraw && !isDrawn && (
                 <p className="text-[11px] text-amber-200/80 mt-2 text-center">
-                  Auslosung erst möglich, wenn alle 24 Kollegen registriert sind (aktuell {registeredCount}/24).
+                  Auslosung erst möglich, wenn alle {totalParticipants} Kollegen registriert sind (aktuell {registeredCount}/{totalParticipants}).
                 </p>
               )}
             </div>

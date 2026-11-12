@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Participant, DrawStatus } from '../../types';
 import { TreeLobby } from './TreeLobby';
 import { LiveCounter } from './LiveCounter';
+import { PartyCountdown } from '../common/PartyCountdown';
+import { PushToggleButton } from '../common/PushToggleButton';
 import { AdminModal } from '../admin/AdminModal';
 import { SecretWishlistNotepad } from '../eastereggs/SecretWishlistNotepad';
 import { soundEngine } from '../../audio/soundEngine';
@@ -11,6 +13,7 @@ interface WaitingLobbyProps {
   status: DrawStatus | null;
   currentUserId?: number | null;
   onPhaseTransition?: () => void;
+  onAdminOpen?: () => void;
   reducedMotion?: boolean;
 }
 
@@ -19,6 +22,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   status,
   currentUserId,
   onPhaseTransition,
+  onAdminOpen,
   reducedMotion = false,
 }) => {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -27,13 +31,13 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   const registeredCount =
     status?.registeredCount ?? participants.filter((p) => p.isRegistered).length;
   const isDrawn = status?.isDrawn ?? false;
+  const totalParticipants = status?.totalParticipants ?? participants.length;
 
   const handleOrbClick = (_participant: Participant) => {
     soundEngine.playOrbPop();
   };
 
   const handleDrawSuccess = () => {
-    soundEngine.playRevealChime();
     setIsAdminOpen(false);
     onPhaseTransition?.();
   };
@@ -41,7 +45,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
   return (
     <div
       data-testid="waiting-lobby"
-      className="relative flex flex-col items-center justify-between w-full max-w-lg mx-auto min-h-[calc(100vh-5rem)] px-2 py-4"
+      className="relative flex-1 flex flex-col items-center justify-between w-full max-w-lg mx-auto px-2 py-2 sm:py-4 gap-3"
     >
       {/* Lobby Header & Live Counter */}
       <div className="w-full space-y-3 text-center">
@@ -53,15 +57,29 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           <span>🎄</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-300">
-          Warte, bis alle 24 Kollegen eingecheckt sind. Sobald die Auslosung startet, wird dein
-          Safe versiegelt!
+          {isDrawn
+            ? 'Die Auslosung ist durch! Öffne jetzt deinen Wichtel-Safe, um deinen Partner zu erfahren.'
+            : `Warte, bis alle ${totalParticipants} Kollegen eingecheckt sind. Sobald die Auslosung startet, wird dein Safe versiegelt!`}
         </p>
 
-        <LiveCounter registeredCount={registeredCount} totalParticipants={24} />
+        <LiveCounter registeredCount={registeredCount} totalParticipants={totalParticipants} />
+
+        {/* Prominent Wishlist Button directly above the tree so it is always visible without scrolling */}
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            data-testid="lobby-wishlist-btn"
+            onClick={() => setIsWishlistOpen(true)}
+            className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 text-amber-100 text-xs sm:text-sm font-semibold transition-colors shadow-md active:scale-95"
+          >
+            <span>📝</span>
+            <span>Mein Wunschzettel</span>
+          </button>
+        </div>
       </div>
 
       {/* Interactive Christmas Tree */}
-      <div className="w-full my-auto py-2">
+      <div className="w-full my-auto py-1">
         <TreeLobby
           participants={participants}
           currentUserId={currentUserId}
@@ -70,23 +88,19 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
         />
       </div>
 
-      {/* Footer Controls with Wishlist & Admin Button */}
-      <div className="w-full flex items-center justify-between pt-4 border-t border-white/10 text-xs text-white/50 px-2">
-        {/* Wishlist Button in Lobby */}
-        <button
-          type="button"
-          onClick={() => setIsWishlistOpen(true)}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 border border-amber-300/30 text-amber-200 transition-colors shadow-sm"
-        >
-          <span>📝</span>
-          <span className="font-semibold">Mein Wunschzettel</span>
-        </button>
+      {/* Countdown to Christmas Party */}
+      <PartyCountdown />
 
+      {/* Optional Push Notifications Opt-In */}
+      <PushToggleButton />
+
+      {/* Footer Controls */}
+      <div className="w-full flex items-center justify-end pt-3 border-t border-white/10 text-xs text-white/50 px-2">
         {isDrawn ? (
           <button
             type="button"
             onClick={onPhaseTransition}
-            className="px-4 py-2 rounded-xl font-bold text-[#002752] bg-gradient-to-r from-[#F9AA2E] to-amber-300 shadow-lg animate-pulse"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl font-bold text-[#002752] bg-gradient-to-r from-[#F9AA2E] to-amber-300 shadow-lg animate-pulse"
           >
             Zum Wichtel-Safe 🔒
           </button>
@@ -94,7 +108,7 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           <button
             type="button"
             data-testid="admin-login-trigger"
-            onClick={() => setIsAdminOpen(true)}
+            onClick={() => (onAdminOpen ? onAdminOpen() : setIsAdminOpen(true))}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white/70 hover:text-amber-300 transition-colors"
           >
             <span>🔐</span>
@@ -117,7 +131,8 @@ export const WaitingLobby: React.FC<WaitingLobbyProps> = ({
           >
             <SecretWishlistNotepad
               onFlipBack={() => setIsWishlistOpen(false)}
-              isDrawn={false}
+              closeLabel="Schließen ✕"
+              isDrawn={isDrawn}
             />
           </div>
         </div>

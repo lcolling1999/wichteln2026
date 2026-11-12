@@ -26,10 +26,18 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
     register,
     login,
     conditionalLogin,
+    prefetchOptions,
     error: webAuthnError,
     clearError,
     isSupported,
   } = useWebAuthn();
+
+  // Prefetch WebAuthn challenge options whenever selection changes (prevents iOS Safari gesture loss)
+  useEffect(() => {
+    if (selectedColleague) {
+      prefetchOptions(selectedColleague.id, selectedColleague.isRegistered);
+    }
+  }, [selectedColleague?.id, selectedColleague?.isRegistered, prefetchOptions]);
 
   useEffect(() => {
     if (externalParticipants && externalParticipants.length > 0) {
@@ -65,7 +73,6 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
     soundEngine.playBiometricSnap();
     setUiState('ascension');
     setStatusMessage(`Willkommen, ${participant.displayName || participant.name}! 🌟`);
-    soundEngine.playRevealChime();
 
     // Complete ascension animation (1.2s) before passing control to Phase 2 Lobby
     setTimeout(() => {
@@ -106,14 +113,14 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
       className="relative w-full max-w-lg mx-auto overflow-hidden rounded-3xl bg-[#004891]/30 backdrop-blur-2xl border border-white/20 p-6 sm:p-8 shadow-2xl text-white transition-all duration-300"
     >
       {/* Decorative Golden Star Accent in Card Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2.5">
-          <span className="text-2xl" role="img" aria-label="Weihnachtsbaum">🎄</span>
-          <h1 className="text-xl font-bold tracking-tight text-white">
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-xl sm:text-2xl shrink-0" role="img" aria-label="Weihnachtsbaum">🎄</span>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-snug">
             Wichteln der Kollegen
           </h1>
         </div>
-        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F9AA2E]/20 text-[#F9AA2E] border border-[#F9AA2E]/40">
+        <span className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-[#F9AA2E]/20 text-[#F9AA2E] border border-[#F9AA2E]/40">
           2026 Edition
         </span>
       </div>
@@ -186,9 +193,9 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="space-y-6"
+            className="space-y-5"
           >
-            <p className="text-sm text-white/80 text-center">
+            <p className="text-sm text-white/80 text-center leading-relaxed">
               Wähle deinen Namen aus der Kollegenliste und melde dich sicher ohne Passwort per
               Passkey an.
             </p>
@@ -228,10 +235,10 @@ export const OnboardingCard: React.FC<OnboardingCardProps> = ({
                   type="button"
                   data-testid="register-btn"
                   onClick={handleRegister}
-                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-[#002752] bg-gradient-to-r from-[#F9AA2E] to-amber-300 hover:from-amber-400 hover:to-yellow-200 shadow-lg shadow-[#F9AA2E]/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center space-x-2"
+                  className="w-full py-3.5 px-5 rounded-xl font-semibold text-[#002752] bg-gradient-to-r from-[#F9AA2E] to-amber-400 hover:from-amber-400 hover:to-amber-300 shadow-lg shadow-[#F9AA2E]/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
                 >
-                  <span>Passkey anlegen & Beitreten</span>
-                  <span>✨</span>
+                  <span>Passkey anlegen &amp; Beitreten</span>
+                  <span aria-hidden="true">🔑</span>
                 </button>
               ) : selectedColleague && selectedColleague.isRegistered ? (
                 <button

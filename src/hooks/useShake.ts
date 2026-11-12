@@ -102,12 +102,32 @@ export function useShake(options: UseShakeOptions = {}): UseShakeReturn {
     // 3. Test Helper exposed on window
     (window as any).__triggerBlizzard = triggerBlizzard;
 
+    // 4. iOS 13+ Safari requires explicit DeviceMotionEvent.requestPermission() inside a user gesture
+    const motionApi = (window as any).DeviceMotionEvent;
+    const needsPermission = typeof motionApi?.requestPermission === 'function';
+    const requestMotionOnGesture = () => {
+      window.removeEventListener('click', requestMotionOnGesture);
+      window.removeEventListener('touchend', requestMotionOnGesture);
+      try {
+        const res = motionApi.requestPermission();
+        if (res && typeof res.catch === 'function') res.catch(() => {});
+      } catch {
+        // Ignore if denied or outside gesture
+      }
+    };
+    if (needsPermission) {
+      window.addEventListener('click', requestMotionOnGesture, { passive: true });
+      window.addEventListener('touchend', requestMotionOnGesture, { passive: true });
+    }
+
     window.addEventListener('devicemotion', handleMotion);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('devicemotion', handleMotion);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('click', requestMotionOnGesture);
+      window.removeEventListener('touchend', requestMotionOnGesture);
       if (timerRef.current) clearTimeout(timerRef.current);
       delete (window as any).__triggerBlizzard;
     };

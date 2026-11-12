@@ -143,7 +143,7 @@ export const SafeVaultContainer: React.FC<SafeVaultContainerProps> = ({ onUnlock
           </div>
 
           {/* 3 Bolt Indicators */}
-          <div className="flex items-center justify-center gap-2 pt-1 pb-2">
+          <div className="grid grid-cols-3 gap-2 pt-1 pb-2 w-full">
             {[0, 1, 2].map((idx) => (
               <BoltIndicator
                 key={idx}
@@ -171,7 +171,7 @@ export const SafeVaultContainer: React.FC<SafeVaultContainerProps> = ({ onUnlock
             <div className="space-y-2" data-testid="safe-guidance">
               <div
                 data-testid="safe-direction-hint"
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-bold transition-colors ${
                   wrongDirection
                     ? 'bg-red-500/20 border-red-400/60 text-red-200'
                     : 'bg-amber-400/15 border-amber-300/40 text-amber-200'
@@ -182,7 +182,7 @@ export const SafeVaultContainer: React.FC<SafeVaultContainerProps> = ({ onUnlock
               </div>
 
               <div className="px-4">
-                <div className="h-2 w-full rounded-full bg-slate-900/80 border border-white/10 overflow-hidden">
+                <div className="h-2.5 w-full rounded-full bg-slate-950/80 border border-white/15 overflow-hidden">
                   <div
                     data-testid="safe-heat-meter"
                     className="h-full rounded-full"

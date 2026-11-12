@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundEngine } from '../../audio/soundEngine';
 import { vibrateTick } from '../../hooks/useHaptics';
@@ -54,6 +55,31 @@ export const EmojiPopChip: React.FC<EmojiPopChipProps> = ({ index, keyword }) =>
     }, 750);
   };
 
+  const particleLayer = (
+    <AnimatePresence>
+      {particles.map((p) => (
+        <motion.span
+          key={p.id}
+          data-testid="emoji-particle"
+          className="emoji-pop-particle fixed pointer-events-none select-none z-50 text-xl -translate-x-1/2 -translate-y-1/2"
+          style={{ left: p.startX, top: p.startY, marginLeft: '-0.5em', marginTop: '-0.5em' }}
+          initial={{ scale: 0.4, opacity: 1, x: 0, y: 0, rotate: 0 }}
+          animate={{
+            scale: [0.4, 1.3, 0.8],
+            opacity: [1, 1, 0],
+            x: p.targetX,
+            y: p.targetY,
+            rotate: p.rotation,
+          }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        >
+          {p.emoji}
+        </motion.span>
+      ))}
+    </AnimatePresence>
+  );
+
   return (
     <>
       <button
@@ -66,29 +92,8 @@ export const EmojiPopChip: React.FC<EmojiPopChipProps> = ({ index, keyword }) =>
         <span className="font-medium text-amber-100">{keyword.word}</span>
       </button>
 
-      {/* Render Particles */}
-      <AnimatePresence>
-        {particles.map((p) => (
-          <motion.span
-            key={p.id}
-            data-testid="emoji-particle"
-            className="emoji-pop-particle fixed pointer-events-none select-none z-50 text-xl"
-            style={{ left: p.startX, top: p.startY }}
-            initial={{ scale: 0.4, opacity: 1, x: 0, y: 0, rotate: 0 }}
-            animate={{
-              scale: [0.4, 1.3, 0.8],
-              opacity: [1, 1, 0],
-              x: p.targetX,
-              y: p.targetY,
-              rotate: p.rotation,
-            }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-          >
-            {p.emoji}
-          </motion.span>
-        ))}
-      </AnimatePresence>
+      {/* Render Particles via Portal on document.body so CSS transform on HolographicCard does not offset fixed coordinates */}
+      {typeof document !== 'undefined' ? createPortal(particleLayer, document.body) : particleLayer}
     </>
   );
 };

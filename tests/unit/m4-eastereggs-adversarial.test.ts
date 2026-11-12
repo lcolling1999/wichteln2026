@@ -814,7 +814,7 @@ describe('Milestone 4 Adversarial Stress: Easter Egg 3 & Easter Egg 4', () => {
       expect(cleanHtml).toContain('data-testid="peek-partner-wishlist-btn"');
       expect(cleanHtml).toContain('Wunschzettel von Carolin ansehen');
       expect(cleanHtml).toContain('data-testid="flip-card-back-btn"');
-      expect(cleanHtml).toContain('Karte umdrehen ⮌');
+      expect(cleanHtml).toContain('Karte umdrehen');
     });
 
     it('empirically renders GrinchOverlay markup and SVG sneering artwork', () => {

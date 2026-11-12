@@ -79,6 +79,14 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
     if (user) {
       req.user = user;
+      if (user.id !== null) {
+        try {
+          q.touchParticipantActivity(user.id);
+        } catch (err) {
+          // Activity tracking must never break a request
+          console.error('Activity tracking error:', err);
+        }
+      }
     }
   } catch (err) {
     console.error('Session lookup error:', err);

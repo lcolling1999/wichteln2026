@@ -7,6 +7,7 @@ import { RudolphAvatar } from '../eastereggs/RudolphAvatar';
 interface ColleagueOrbProps {
   participant: Participant;
   isCurrentUser?: boolean;
+  isTooltipOpen?: boolean;
   onClick?: () => void;
   reducedMotion?: boolean;
 }
@@ -14,15 +15,22 @@ interface ColleagueOrbProps {
 export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
   participant,
   isCurrentUser = false,
+  isTooltipOpen,
   onClick,
   reducedMotion = false,
 }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isTapped, setIsTapped] = useState(false);
   const isRegistered = participant.isRegistered;
+
+  const showTooltip =
+    isTooltipOpen !== undefined ? isTooltipOpen || isHovered : isTapped || isHovered;
 
   const handleClick = () => {
     soundEngine.playOrbPop();
-    setShowTooltip((prev) => !prev);
+    if (isTooltipOpen === undefined) {
+      setIsTapped((prev) => !prev);
+    }
     onClick?.();
   };
 
@@ -42,8 +50,12 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
           mass: 0.8,
         }}
         onClick={handleClick}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        onPointerEnter={(e) => {
+          if (e.pointerType === 'mouse') setIsHovered(true);
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') setIsHovered(false);
+        }}
         className={`colleague-orb relative group flex flex-col items-center justify-center rounded-full transition-colors duration-300 focus:outline-none select-none ${
           isRegistered
             ? 'gold registered text-amber-950 border-2 border-amber-300/80'
@@ -77,7 +89,7 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
   );
 
   return (
-    <div className="relative flex items-center justify-center">
+    <div className={`relative flex items-center justify-center ${showTooltip ? 'z-40' : 'z-10'}`}>
       {isCurrentUser ? (
         <RudolphAvatar
           isCurrentUser={true}
@@ -92,7 +104,10 @@ export const ColleagueOrb: React.FC<ColleagueOrbProps> = ({
 
       {/* Tooltip on Hover or Tap */}
       {showTooltip && (
-        <div className="pointer-events-none absolute bottom-full mb-2 z-30 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-[#001932]/95 text-white border border-white/20 shadow-xl backdrop-blur-md">
+        <div
+          data-testid={`colleague-tooltip-${participant.id}`}
+          className="pointer-events-none absolute bottom-full mb-2 z-50 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap bg-[#001932]/95 text-white border border-white/20 shadow-xl backdrop-blur-md"
+        >
           <div className="flex items-center space-x-1">
             <span>{participant.displayName || participant.name}</span>
             {isRegistered ? (

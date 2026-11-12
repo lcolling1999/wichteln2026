@@ -199,27 +199,41 @@ export const SafeRotaryDial: React.FC<SafeRotaryDialProps> = ({
           background: 'radial-gradient(circle, #1e293b 0%, #0f172a 75%, #020617 100%)',
         }}
       >
-        {/* Graduation Notches */}
-        {notches.map((deg) => (
-          <div
-            key={deg}
-            className="absolute top-1 left-1/2 -translate-x-1/2 origin-[50%_92px] pointer-events-none"
-            style={{ transform: `rotate(${deg}deg)` }}
-          >
-            <div
-              className={`w-0.5 rounded-full ${
-                deg % 90 === 0
-                  ? 'h-3.5 bg-amber-400 shadow-[0_0_4px_#F9AA2E]'
-                  : deg % 45 === 0
-                  ? 'h-2.5 bg-slate-200'
-                  : 'h-1.5 bg-slate-500'
-              }`}
-            />
-          </div>
-        ))}
-
-        {/* 12 o'clock Gold Needle / Notch */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[8px] border-t-amber-400 drop-shadow-[0_0_4px_#F9AA2E]" />
+        {/* Crisp centered SVG graduation notches + 12 o'clock pointer */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox="0 0 200 200"
+          aria-hidden="true"
+        >
+          {notches.map((deg) => {
+            if (deg === 0) {
+              // 12 o'clock gold pointer triangle (replaces the 0° line cleanly without overlap)
+              return (
+                <polygon
+                  key={deg}
+                  points="100,20 94,8 106,8"
+                  fill="#F9AA2E"
+                />
+              );
+            }
+            const isMajor = deg % 90 === 0;
+            const isMid = deg % 45 === 0;
+            const y2 = isMajor ? 22 : isMid ? 18 : 14;
+            return (
+              <line
+                key={deg}
+                x1="100"
+                y1="6"
+                x2="100"
+                y2={y2}
+                stroke={isMajor ? '#F9AA2E' : isMid ? '#E2E8F0' : '#64748B'}
+                strokeWidth={isMajor ? 2.5 : 1.8}
+                strokeLinecap="round"
+                transform={`rotate(${deg} 100 100)`}
+              />
+            );
+          })}
+        </svg>
 
         {/* Center Golden Glowing Hub */}
         <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 flex items-center justify-center shadow-[0_0_25px_rgba(249,170,46,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-yellow-200/60">

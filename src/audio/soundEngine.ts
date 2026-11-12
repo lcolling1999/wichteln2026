@@ -39,6 +39,7 @@ export class SoundEngine {
   private masterGain: GainNode | null = null;
   private cachedNoiseBuffer: AudioBuffer | null = null;
   private saturationCurve: Float32Array | null = null;
+  private iosUnlocked: boolean = false;
 
   constructor() {
     this.isMuted = this.loadMuteState();
@@ -116,10 +117,30 @@ export class SoundEngine {
       }
     }
 
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (
+      this.ctx &&
+      (this.ctx.state === 'suspended' || (this.ctx.state as string) === 'interrupted')
+    ) {
       this.ctx.resume().catch(() => {
         // Suppress unhandled rejection when resumed prior to user gesture
       });
+    }
+
+    // iOS Safari unlock: play a 1-sample silent buffer on first gesture & set audioSession to 'playback'
+    if (this.ctx && !this.iosUnlocked) {
+      this.iosUnlocked = true;
+      try {
+        if (typeof navigator !== 'undefined' && (navigator as any).audioSession) {
+          (navigator as any).audioSession.type = 'playback';
+        }
+        const silent = this.ctx.createBuffer(1, 1, 22050);
+        const src = this.ctx.createBufferSource();
+        src.buffer = silent;
+        src.connect(this.ctx.destination);
+        src.start(0);
+      } catch {
+        // Ignore in headless / mock environments
+      }
     }
 
     return this.ctx;

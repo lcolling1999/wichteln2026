@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS participants (
   normalized_name TEXT NOT NULL UNIQUE,
   is_registered INTEGER NOT NULL DEFAULT 0 CHECK (is_registered IN (0, 1)),
   registered_at TEXT NULL,
+  last_active_at TEXT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_participants_name ON participants(name);

@@ -15,10 +15,11 @@ participantsRouter.get('/status', (req: Request, res: Response, next: NextFuncti
 
     const drawStatus = q.getDrawStatus();
     const registeredCount = q.getRegisteredCount();
+    const totalParticipants = q.getAllParticipants().length;
 
     res.status(200).json({
       isDrawn: Boolean(drawStatus.is_drawn),
-      totalParticipants: 24,
+      totalParticipants,
       registeredCount,
       drawnAt: drawStatus.drawn_at,
       verificationHash: drawStatus.verification_hash,

@@ -284,6 +284,8 @@ export function useCardTilt(options: UseCardTiltOptions = {}): CardTiltResult {
     const needsPermission = typeof orientationApi?.requestPermission === 'function';
     const requestOnGesture = () => {
       window.removeEventListener('pointerdown', requestOnGesture);
+      window.removeEventListener('click', requestOnGesture);
+      window.removeEventListener('touchend', requestOnGesture);
       try {
         const result = orientationApi.requestPermission();
         if (result && typeof result.catch === 'function') result.catch(() => {});
@@ -292,12 +294,16 @@ export function useCardTilt(options: UseCardTiltOptions = {}): CardTiltResult {
       }
     };
     if (needsPermission) {
-      window.addEventListener('pointerdown', requestOnGesture);
+      window.addEventListener('pointerdown', requestOnGesture, { passive: true });
+      window.addEventListener('click', requestOnGesture, { passive: true });
+      window.addEventListener('touchend', requestOnGesture, { passive: true });
     }
 
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
       window.removeEventListener('pointerdown', requestOnGesture);
+      window.removeEventListener('click', requestOnGesture);
+      window.removeEventListener('touchend', requestOnGesture);
       if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [maxTiltDeg]);

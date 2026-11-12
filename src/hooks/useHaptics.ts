@@ -11,13 +11,52 @@ export function isVibrationSupported(): boolean {
   );
 }
 
-export function vibratePattern(pattern: number | number[]): boolean {
-  if (!isVibrationSupported()) return false;
+/**
+ * iOS 17.4+ / iOS 18 Safari fallback: hidden `<input type="checkbox" switch>` label click
+ * triggers the iPhone Taptic Engine when called during a user interaction.
+ */
+let iosSwitchLabel: HTMLLabelElement | null = null;
+
+function triggerIosTaptic(): boolean {
+  if (typeof document === 'undefined' || !document.body) return false;
   try {
-    return navigator?.vibrate?.(pattern) ?? false;
+    if (!iosSwitchLabel || !document.body.contains(iosSwitchLabel)) {
+      const label = document.createElement('label');
+      label.setAttribute('aria-hidden', 'true');
+      label.style.cssText =
+        'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      label.appendChild(input);
+      document.body.appendChild(label);
+      iosSwitchLabel = label;
+    }
+    iosSwitchLabel.click();
+    return true;
   } catch {
     return false;
   }
+}
+
+export function vibratePattern(pattern: number | number[]): boolean {
+  if (isVibrationSupported()) {
+    try {
+      return navigator?.vibrate?.(pattern) ?? false;
+    } catch {
+      return false;
+    }
+  }
+  // Fallback for iPhone / iOS Safari (Taptic Engine switch trick)
+  if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+    const pulses = Array.isArray(pattern) ? Math.ceil(pattern.length / 2) : 1;
+    const triggered = triggerIosTaptic();
+    if (triggered && pulses > 1) {
+      setTimeout(() => triggerIosTaptic(), 80);
+    }
+    return triggered;
+  }
+  return false;
 }
 
 export function vibrateTick(): boolean {

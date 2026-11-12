@@ -27,7 +27,8 @@
     "framer-motion": "^14.9.1",
     "lucide-react": "^1.68.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

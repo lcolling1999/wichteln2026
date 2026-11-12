@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { REFRESH_EVENT } from '../common/PullToRefresh';
 
 export interface SecretWishlistNotepadProps {
   partnerName?: string;
   onFlipBack?: () => void;
+  /** Label for the close/flip-back button (defaults to 'Karte umdrehen' for the 3D card) */
+  closeLabel?: string;
   /** Whether the draw has already happened. If false, only personal wishlist is shown (no partner peek). */
   isDrawn?: boolean;
 }
@@ -10,6 +13,7 @@ export interface SecretWishlistNotepadProps {
 export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
   partnerName = 'dein Wichtelpartner',
   onFlipBack,
+  closeLabel = 'Karte umdrehen',
   isDrawn = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'mine' | 'partner'>('mine');
@@ -25,6 +29,34 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>('');
+  /** Latest text in the textarea (readable from timers/unmount without stale closures) */
+  const latestContentRef = useRef<string>('');
+  /** True once the user typed - a late GET response must not overwrite their input */
+  const userEditedRef = useRef<boolean>(false);
+  const saveSeqRef = useRef<number>(0);
+  const isMountedRef = useRef<boolean>(true);
+
+  // Flush a pending (debounced) save when the notepad closes/unmounts, so no text is lost
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+        const pending = latestContentRef.current;
+        if (pending !== lastSavedRef.current) {
+          fetch('/api/me/wishlist', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            keepalive: true,
+            body: JSON.stringify({ content: pending }),
+          }).catch(() => {});
+        }
+      }
+    };
+  }, []);
 
   // 1. Initial Load of Current User's Wishlist (GET /api/me/wishlist)
   useEffect(() => {
@@ -32,7 +64,8 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
     fetch('/api/me/wishlist', { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (isMounted && data && typeof data.content === 'string') {
+        if (isMounted && !userEditedRef.current && data && typeof data.content === 'string') {
+          latestContentRef.current = data.content;
           setContent(data.content);
           lastSavedRef.current = data.content;
         }
@@ -43,9 +76,54 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
     };
   }, []);
 
+  // 1b. Pull-to-refresh: reload own wishlist (only if there are no unsaved local edits)
+  //     and the partner's wishlist (if it was already opened) without flashing a loading state.
+  useEffect(() => {
+    const onRefresh = () => {
+      const hasUnsavedEdits =
+        debounceTimerRef.current !== null || latestContentRef.current !== lastSavedRef.current;
+      if (!hasUnsavedEdits) {
+        fetch('/api/me/wishlist', { credentials: 'include' })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (!isMountedRef.current || !data || typeof data.content !== 'string') return;
+            // Re-check: the user may have started typing while the request was running
+            if (debounceTimerRef.current !== null || latestContentRef.current !== lastSavedRef.current) return;
+            latestContentRef.current = data.content;
+            lastSavedRef.current = data.content;
+            setContent(data.content);
+          })
+          .catch(() => {});
+      }
+
+      if (isDrawn && (partnerFetched || activeTab === 'partner')) {
+        fetch('/api/partner/wishlist', { credentials: 'include' })
+          .then(async (res) => {
+            if (!isMountedRef.current) return;
+            if (res.status === 404) {
+              setPartnerContent('');
+              setPartnerError(null);
+              setPartnerFetched(true);
+              return;
+            }
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!isMountedRef.current) return;
+            setPartnerContent(data.content || '');
+            setPartnerError(null);
+            setPartnerFetched(true);
+          })
+          .catch(() => {});
+      }
+    };
+    window.addEventListener(REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(REFRESH_EVENT, onRefresh);
+  }, [isDrawn, partnerFetched, activeTab]);
+
   // 2. Debounced Autosave (PUT /api/me/wishlist, 500ms debounce)
   const saveWishlist = async (textToSave: string) => {
     if (textToSave === lastSavedRef.current) return;
+    const seq = ++saveSeqRef.current;
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -56,19 +134,30 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
         body: JSON.stringify({ content: textToSave }),
       });
       if (!res.ok) {
-        throw new Error('Speichern fehlgeschlagen');
+        throw new Error(
+          res.status === 401 || res.status === 403
+            ? 'Nicht angemeldet – bitte neu einloggen, sonst geht dein Text verloren.'
+            : 'Speichern fehlgeschlagen – wir versuchen es bei der nächsten Änderung erneut.'
+        );
       }
+      if (!isMountedRef.current) return;
+      // Ignore outdated responses (a newer save was started meanwhile)
+      if (seq !== saveSeqRef.current) return;
       lastSavedRef.current = textToSave;
-      setIsSaved(true);
+      setIsSaved(latestContentRef.current === textToSave);
     } catch (err: any) {
-      setSaveError(err.message || 'Fehler beim Speichern');
+      if (isMountedRef.current && seq === saveSeqRef.current) {
+        setSaveError(err.message || 'Fehler beim Speichern');
+      }
     } finally {
-      setIsSaving(false);
+      if (isMountedRef.current && seq === saveSeqRef.current) setIsSaving(false);
     }
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextText = e.target.value;
+    userEditedRef.current = true;
+    latestContentRef.current = nextText;
     setContent(nextText);
     setIsSaved(false);
 
@@ -76,6 +165,7 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
       saveWishlist(nextText);
     }, 500);
   };
@@ -112,15 +202,15 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
       className="flex flex-col h-full w-full text-left select-text"
       onClick={(e) => e.stopPropagation()} // Stop click bubbling to avoid accidental flip
     >
-      {/* Header bar with Flip Back button */}
-      <div className="flex items-center justify-between pb-3 mb-2 border-b border-amber-400/20">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📝</span>
-          <div>
-            <h3 className="font-extrabold text-sm sm:text-base text-amber-300 tracking-wide leading-tight">
+      {/* Header bar with Flip Back / Close button */}
+      <div className="flex items-start justify-between gap-3 pb-3 mb-3 border-b border-amber-400/20">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+          <span className="text-lg sm:text-xl leading-none mt-0.5 shrink-0">📝</span>
+          <div className="min-w-0">
+            <h3 className="font-extrabold text-sm sm:text-base text-amber-300 tracking-tight leading-snug">
               {activeTab === 'mine' ? 'Dein geheimer Wunschzettel' : `Wünsche von ${partnerName}`}
             </h3>
-            <span className="text-[11px] text-amber-200/70 block">
+            <span className="text-[11px] text-amber-200/70 block leading-snug mt-0.5">
               {activeTab === 'mine' ? 'Sichtbar nur für deinen Wichtel' : 'Geschenk-Tipps für dich'}
             </span>
           </div>
@@ -133,9 +223,24 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
               e.stopPropagation();
               onFlipBack();
             }}
-            className="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-xs text-amber-100 font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="px-2.5 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-[11px] sm:text-xs text-amber-100 font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
           >
-            Karte umdrehen ⮌
+            <span>{closeLabel}</span>
+            {closeLabel === 'Karte umdrehen' && (
+              <svg
+                className="w-3.5 h-3.5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            )}
           </button>
         )}
       </div>
@@ -157,7 +262,7 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
             className="w-full flex-1 min-h-[140px] p-3 rounded-xl bg-slate-900/80 resize-none text-sm text-white placeholder-slate-400/70 focus:outline-none focus:ring-2 focus:ring-amber-400 border border-amber-400/30 custom-scrollbar shadow-inner"
           />
 
-          <div className="flex items-center justify-between pt-1 text-xs">
+          <div className="flex items-center justify-between min-h-[20px] pt-0.5 text-xs">
             {/* Status Indicator */}
             <div className="flex items-center gap-2">
               {isSaving && (
@@ -185,12 +290,12 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
 
           {/* Peek Partner Wishlist Button (only post-draw) */}
           {isDrawn && (
-            <div className="pt-2 border-t border-white/10 flex justify-center">
+            <div className="pt-2.5 border-t border-white/10">
               <button
                 type="button"
                 data-testid="peek-partner-wishlist-btn"
                 onClick={handlePeekPartner}
-                className="px-4 py-2 rounded-xl bg-amber-400/25 hover:bg-amber-400/35 border border-amber-300/50 text-amber-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+                className="w-full px-4 py-2.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/45 text-amber-100 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99]"
               >
                 <span className="text-sm">👀</span>
                 <span>Wunschzettel von {partnerName} ansehen</span>
@@ -222,12 +327,12 @@ export const SecretWishlistNotepad: React.FC<SecretWishlistNotepadProps> = ({
             )}
           </div>
 
-          <div className="flex justify-between items-center pt-1">
+          <div className="pt-2.5 border-t border-white/10">
             <button
               type="button"
               data-testid="back-to-my-wishlist-btn"
               onClick={() => setActiveTab('mine')}
-              className="text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer flex items-center gap-1"
+              className="w-full px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-amber-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               <span>←</span>
               <span>Zu meinem Wunschzettel</span>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Participant } from '../../types';
 import { ColleagueOrb } from './ColleagueOrb';
 
@@ -15,6 +15,21 @@ export const TreeLobby: React.FC<TreeLobbyProps> = ({
   onOrbClick,
   reducedMotion = false,
 }) => {
+  const [activeOrbId, setActiveOrbId] = useState<number | null>(null);
+
+  // Close open tooltip when tapping outside any colleague orb
+  useEffect(() => {
+    if (activeOrbId === null) return;
+    const handleOutsidePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest('[data-testid^="colleague-orb-"]')) {
+        setActiveOrbId(null);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+    return () => document.removeEventListener('pointerdown', handleOutsidePointerDown);
+  }, [activeOrbId]);
+
   // Balanced 24-colleague tree geometry: 1 + 2 + 3 + 4 + 5 + 5 + 4 = 24
   const tierDistribution = [1, 2, 3, 4, 5, 5, 4];
 
@@ -28,7 +43,7 @@ export const TreeLobby: React.FC<TreeLobbyProps> = ({
   return (
     <div
       data-testid="lobby-tree"
-      className="relative flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto my-4 px-1"
+      className="relative flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md mx-auto my-2 px-1"
     >
       {/* Decorative Tree Apex Golden Star */}
       <div className="text-2xl sm:text-3xl text-[#F9AA2E] filter drop-shadow-[0_0_12px_#F9AA2E] animate-pulse mb-1 select-none">
@@ -49,7 +64,11 @@ export const TreeLobby: React.FC<TreeLobbyProps> = ({
                 key={colleague.id}
                 participant={colleague}
                 isCurrentUser={colleague.id === currentUserId}
-                onClick={() => onOrbClick?.(colleague)}
+                isTooltipOpen={activeOrbId === colleague.id}
+                onClick={() => {
+                  setActiveOrbId((prev) => (prev === colleague.id ? null : colleague.id));
+                  onOrbClick?.(colleague);
+                }}
                 reducedMotion={reducedMotion}
               />
             ))}
