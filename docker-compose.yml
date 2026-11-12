@@ -1,0 +1,26 @@
+services:
+  wichteln:
+    # Ersetze <DEIN-GITHUB-NAME> und <DEIN-REPO-NAME> (alles kleingeschrieben)
+    image: ghcr.io/<DEIN-GITHUB-NAME>/<DEIN-REPO-NAME>:latest
+    container_name: wichteln-kollegen
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_PATH: /app/data/wichteln.db
+      # WICHTIG fuer Passkeys (WebAuthn): Exakte Domain ohne https:// angeben
+      RP_NAME: "Wichteln 24 Kollegen"
+      RP_ID: wichteln.example.com
+      # Exakte URL mit https:// (falls mehrere, mit Komma trennen)
+      ORIGINS: https://wichteln.example.com
+      # Unbedingt vor dem Start auf einen eigenen geheimen PIN aendern!
+      ADMIN_PIN: wichteln2026
+      ALLOW_PARTIAL_DRAW: "false"
+    volumes:
+      # Speichert die SQLite-Datenbank dauerhaft ausserhalb des Containers
+      - wichteln_data:/app/data
+
+volumes:
+  wichteln_data:

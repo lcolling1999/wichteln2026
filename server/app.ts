@@ -1,4 +1,6 @@
 import express, { Express } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { config } from './config.js';
@@ -57,7 +59,16 @@ export function createApp(): Express {
     app.use('/api/test', testRouter);
   }
 
-  // 5. Centralized Error Handling
+  // 5. Serve built Vite frontend in production
+  const clientDistPath = path.resolve(process.cwd(), 'dist', 'client');
+  if (config.isProduction && fs.existsSync(clientDistPath)) {
+    app.use(express.static(clientDistPath));
+    app.get(/^\/(?!api(?:\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
+  }
+
+  // 6. Centralized Error Handling
   app.use(errorHandler);
 
   return app;
