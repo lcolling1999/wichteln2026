@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Wichteln der Kollegen 2026",
+  "short_name": "Wichteln 2026",
+  "description": "Geheimes Wichteln der Kollegen mit Passkey & Tresor",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#001226",
+  "theme_color": "#001932",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
