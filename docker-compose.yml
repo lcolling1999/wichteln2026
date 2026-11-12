@@ -1,7 +1,7 @@
 services:
   wichteln:
     # Ersetze <DEIN-GITHUB-NAME> und <DEIN-REPO-NAME> (alles kleingeschrieben)
-    image: ghcr.io/<DEIN-GITHUB-NAME>/<DEIN-REPO-NAME>:latest
+    image: ghcr.io/lcolling1999/wichteln2026:latest
     container_name: wichteln-kollegen
     restart: unless-stopped
     ports:
